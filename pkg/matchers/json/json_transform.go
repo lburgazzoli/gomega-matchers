@@ -1,4 +1,4 @@
-package jq
+package json
 
 import (
 	"encoding/json"
