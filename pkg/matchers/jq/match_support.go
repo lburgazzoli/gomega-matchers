@@ -1,4 +1,4 @@
-package matchers
+package jq
 
 import (
 	"encoding/json"

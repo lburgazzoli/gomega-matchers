@@ -25,3 +25,4 @@ linters:
     - structcheck
     - maligned
     - depguard
+    - gci
