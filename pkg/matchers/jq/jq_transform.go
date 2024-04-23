@@ -16,7 +16,7 @@ func Extract(expression string) func(in any) (any, error) {
 
 		actualString, ok := toString(in)
 		if !ok {
-			return false, fmt.Errorf("ExtractJQ requires a string, stringer, or []byte.  Got actual:\n%s", format.Object(in, 1))
+			return false, fmt.Errorf("extract requires a string, stringer, or []byte. got:\n%s", format.Object(in, 1))
 		}
 
 		if len(actualString) == 0 {

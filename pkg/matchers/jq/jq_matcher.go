@@ -31,7 +31,7 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 
 	actualString, ok := toString(actual)
 	if !ok {
-		return false, fmt.Errorf("MatchJQMatcher matcher requires a string, stringer, or []byte.  Got actual:\n%s", format.Object(actual, 1))
+		return false, fmt.Errorf("jq matcher requires a string, stringer, or []byte, got:\n%s", format.Object(actual, 1))
 	}
 
 	data := make(map[string]interface{})
@@ -60,19 +60,19 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 func (matcher *jqMatcher) FailureMessage(actual interface{}) string {
 	actualString, expectedString, _ := matcher.prettyPrint(actual)
 
-	return formattedMessage(format.Message(actualString, "to match JQ Expression", expectedString), matcher.firstFailurePath)
+	return formattedMessage(format.Message(actualString, "to match jq expression", expectedString), matcher.firstFailurePath)
 }
 
 func (matcher *jqMatcher) NegatedFailureMessage(actual interface{}) string {
 	actualString, expectedString, _ := matcher.prettyPrint(actual)
 
-	return formattedMessage(format.Message(actualString, "not to match JQ expression", expectedString), matcher.firstFailurePath)
+	return formattedMessage(format.Message(actualString, "not to match jq expression", expectedString), matcher.firstFailurePath)
 }
 
 func (matcher *jqMatcher) prettyPrint(actual interface{}) (string, string, error) {
 	actualString, ok := toString(actual)
 	if !ok {
-		return "", "", fmt.Errorf("the MatchJQMatcher matcher requires a string, stringer, or []byte.  Got actual:\n%s", format.Object(actual, 1))
+		return "", "", fmt.Errorf("the jq matcher requires a string, stringer, or []byte, got:\n%s", format.Object(actual, 1))
 	}
 
 	abuf := new(bytes.Buffer)
