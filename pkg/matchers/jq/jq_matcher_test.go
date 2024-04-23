@@ -1,6 +1,7 @@
 package jq_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
@@ -8,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestJQMatcher(t *testing.T) {
+func TestMatcher(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -18,4 +19,24 @@ func TestJQMatcher(t *testing.T) {
 	g.Expect(`{"Values":[ "foo" ]}`).Should(jq.Match(`.Values | if . then any(. == "foo") else false end`))
 	g.Expect(`{"Values":[ "foo" ]}`).Should(Not(jq.Match(`.Values | if . then any(. == "bar") else false end`)))
 	g.Expect(`{"Values": null}`).Should(Not(jq.Match(`.Values | if . then any(. == "foo") else false end`)))
+}
+
+func TestMatcherWithType(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(map[string]any{"a": 1}).Should(
+		WithTransform(json.Marshal, jq.Match(`.a == 1`)),
+	)
+
+	g.Expect(
+		struct {
+			A int `json:"a"`
+		}{
+			A: 1,
+		}).
+		Should(
+			WithTransform(json.Marshal, jq.Match(`.a == 1`)),
+		)
 }
