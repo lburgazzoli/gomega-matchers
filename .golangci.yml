@@ -1,0 +1,27 @@
+linters-settings:
+  lll:
+    line-length: 170
+  goconst:
+    ignore-tests: true
+  revive:
+    rules:
+      - name: dot-imports
+        disabled: true
+linters:
+  enable-all: true
+  disable:
+    - exhaustivestruct
+    - exhaustruct
+    - goerr113
+    - golint
+    - interfacer
+    - ireturn
+    - nosnakecase
+    - scopelint
+    - varnamelen
+    - varcheck
+    - ifshort
+    - deadcode
+    - structcheck
+    - maligned
+    - depguard
