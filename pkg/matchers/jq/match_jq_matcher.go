@@ -1,4 +1,4 @@
-package matchers
+package jq
 
 import (
 	"bytes"
@@ -10,13 +10,7 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-func MatchJQ(expression string) types.GomegaMatcher {
-	return &jqMatcher{
-		Expression: expression,
-	}
-}
-
-func MatchJQf(format string, args ...any) types.GomegaMatcher {
+func Match(format string, args ...any) types.GomegaMatcher {
 	return &jqMatcher{
 		Expression: fmt.Sprintf(format, args...),
 	}

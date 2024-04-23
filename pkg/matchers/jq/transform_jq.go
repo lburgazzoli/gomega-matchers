@@ -1,4 +1,4 @@
-package matchers
+package jq
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/onsi/gomega/format"
 )
 
-func ExtractJQ(expression string) func(in any) (any, error) {
+func Extract(expression string) func(in any) (any, error) {
 	return func(in any) (any, error) {
 		query, err := gojq.Parse(expression)
 		if err != nil {
