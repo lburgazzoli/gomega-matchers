@@ -1,8 +1,6 @@
 package jq
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/itchyny/gojq"
@@ -29,14 +27,9 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 		return false, fmt.Errorf("unable to parse expression %s, %w", matcher.Expression, err)
 	}
 
-	actualString, ok := toString(actual)
-	if !ok {
-		return false, fmt.Errorf("jq matcher requires a string, stringer, or []byte, got:\n%s", format.Object(actual, 1))
-	}
-
-	data := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(actualString), &data); err != nil {
-		return false, fmt.Errorf("unable to unmarshal result, %w", err)
+	data, err := toType(actual)
+	if err != nil {
+		return false, err
 	}
 
 	it := query.Run(data)
@@ -58,28 +51,9 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 }
 
 func (matcher *jqMatcher) FailureMessage(actual interface{}) string {
-	actualString, expectedString, _ := matcher.prettyPrint(actual)
-
-	return formattedMessage(format.Message(actualString, "to match jq expression", expectedString), matcher.firstFailurePath)
+	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "to match expression", matcher.Expression), matcher.firstFailurePath)
 }
 
 func (matcher *jqMatcher) NegatedFailureMessage(actual interface{}) string {
-	actualString, expectedString, _ := matcher.prettyPrint(actual)
-
-	return formattedMessage(format.Message(actualString, "not to match jq expression", expectedString), matcher.firstFailurePath)
-}
-
-func (matcher *jqMatcher) prettyPrint(actual interface{}) (string, string, error) {
-	actualString, ok := toString(actual)
-	if !ok {
-		return "", "", fmt.Errorf("the jq matcher requires a string, stringer, or []byte, got:\n%s", format.Object(actual, 1))
-	}
-
-	abuf := new(bytes.Buffer)
-
-	if err := json.Indent(abuf, []byte(actualString), "", "  "); err != nil {
-		return "", "", fmt.Errorf("actual '%s' should match '%s', but it does not.\nUnderlying error: %w", actualString, matcher.Expression, err)
-	}
-
-	return abuf.String(), matcher.Expression, nil
+	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "not to match expression", matcher.Expression), matcher.firstFailurePath)
 }

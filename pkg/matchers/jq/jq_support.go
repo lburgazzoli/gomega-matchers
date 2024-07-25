@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
-	"github.com/itchyny/gojq"
+	"github.com/onsi/gomega/format"
 )
 
 func formattedMessage(comparisonMessage string, failurePath []interface{}) string {
@@ -40,34 +41,43 @@ func formattedFailurePath(failurePath []interface{}) string {
 	return strings.Join(formattedPaths, "")
 }
 
-func toString(a interface{}) (string, bool) {
-	aString, isString := a.(string)
-	if isString {
-		return aString, true
+func toType(in any) (any, error) {
+	switch v := in.(type) {
+	case string:
+		d, err := byteToType([]byte(v))
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
+	case []byte:
+		d, err := byteToType(v)
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
+	case json.RawMessage:
+		d, err := byteToType(v)
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
 	}
 
-	aBytes, isBytes := a.([]byte)
-	if isBytes {
-		return string(aBytes), true
+	//nolint:exhaustive
+	switch reflect.TypeOf(in).Kind() {
+	case reflect.Map:
+		return in, nil
+	case reflect.Slice:
+		return in, nil
+	default:
+		return nil, fmt.Errorf("unsuported type:\n%s", format.Object(in, 1))
 	}
-
-	aStringer, isStringer := a.(fmt.Stringer)
-	if isStringer {
-		return aStringer.String(), true
-	}
-
-	aJSONRawMessage, isJSONRawMessage := a.(json.RawMessage)
-	if isJSONRawMessage {
-		return string(aJSONRawMessage), true
-	}
-
-	return "", false
 }
 
-func runQuery(query *gojq.Query, in []byte) (gojq.Iter, error) {
-	var it gojq.Iter
-
-	// rough check for object vs array
+func byteToType(in []byte) (any, error) {
 	switch in[0] {
 	case '{':
 		data := make(map[string]any)
@@ -75,17 +85,15 @@ func runQuery(query *gojq.Query, in []byte) (gojq.Iter, error) {
 			return nil, fmt.Errorf("unable to unmarshal result, %w", err)
 		}
 
-		it = query.Run(data)
+		return data, nil
 	case '[':
 		var data []any
 		if err := json.Unmarshal(in, &data); err != nil {
 			return nil, fmt.Errorf("unable to unmarshal result, %w", err)
 		}
 
-		it = query.Run(data)
+		return data, nil
 	default:
 		return nil, errors.New("a Json Array or Object is required")
 	}
-
-	return it, nil
 }

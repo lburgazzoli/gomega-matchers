@@ -26,9 +26,13 @@ func TestMatcherWithType(t *testing.T) {
 
 	g := NewWithT(t)
 
-	g.Expect(map[string]any{"a": 1}).Should(
-		WithTransform(json.Marshal, jq.Match(`.a == 1`)),
-	)
+	g.Expect(map[string]any{"a": 1}).
+		Should(
+			WithTransform(json.Marshal, jq.Match(`.a == 1`)),
+		)
+
+	g.Expect(map[string]any{"a": 1}).
+		Should(jq.Match(`.a == 1`))
 
 	g.Expect(
 		struct {
