@@ -15,6 +15,17 @@ func TestExtract(t *testing.T) {
 	g := NewWithT(t)
 
 	g.Expect(`{ "foo": { "a": 1 }}`).Should(
-		WithTransform(jq.Extract(`.foo`), WithTransform(json.Marshal, jq.Match(`.a == 1`))),
+		WithTransform(jq.Extract(`.foo`), WithTransform(json.Marshal,
+			jq.Match(`.a == 1`),
+		)),
+	)
+
+	g.Expect(`{ "status": { "foo": { "bar": "fr", "baz": "fz" } } }`).Should(
+		WithTransform(jq.Extract(`.status`),
+			And(
+				jq.Match(`.foo.bar == "fr"`),
+				jq.Match(`.foo.baz == "fz"`),
+			),
+		),
 	)
 }

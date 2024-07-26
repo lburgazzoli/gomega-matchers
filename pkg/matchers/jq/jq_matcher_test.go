@@ -14,11 +14,38 @@ func TestMatcher(t *testing.T) {
 
 	g := NewWithT(t)
 
-	g.Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
-	g.Expect(`{"a":1}`).Should(Not(jq.Match(`.a == 2`)))
-	g.Expect(`{"Values":[ "foo" ]}`).Should(jq.Match(`.Values | if . then any(. == "foo") else false end`))
-	g.Expect(`{"Values":[ "foo" ]}`).Should(Not(jq.Match(`.Values | if . then any(. == "bar") else false end`)))
-	g.Expect(`{"Values": null}`).Should(Not(jq.Match(`.Values | if . then any(. == "foo") else false end`)))
+	g.Expect(`{"a":1}`).Should(
+		jq.Match(`.a == 1`),
+	)
+
+	g.Expect(`{"a":1}`).Should(
+		Not(
+			jq.Match(`.a == 2`),
+		),
+	)
+
+	g.Expect(`{"Values":[ "foo" ]}`).Should(
+		jq.Match(`.Values | if . then any(. == "foo") else false end`),
+	)
+
+	g.Expect(`{"Values":[ "foo" ]}`).Should(
+		Not(
+			jq.Match(`.Values | if . then any(. == "bar") else false end`),
+		),
+	)
+
+	g.Expect(`{"Values": null}`).Should(
+		Not(
+			jq.Match(`.Values | if . then any(. == "foo") else false end`),
+		),
+	)
+
+	g.Expect(`{ "status": { "foo": { "bar": "fr", "baz": "fb" } } }`).Should(
+		And(
+			jq.Match(`.status.foo.bar == "fr"`),
+			jq.Match(`.status.foo.baz == "fb"`),
+		),
+	)
 }
 
 func TestMatcherWithType(t *testing.T) {
@@ -29,6 +56,22 @@ func TestMatcherWithType(t *testing.T) {
 	g.Expect(map[string]any{"a": 1}).
 		Should(
 			WithTransform(json.Marshal, jq.Match(`.a == 1`)),
+		)
+
+	g.Expect(
+		map[string]any{
+			"status": map[string]any{
+				"foo": map[string]any{
+					"bar": "fr",
+					"baz": "fb",
+				},
+			},
+		}).
+		Should(
+			WithTransform(json.Marshal, And(
+				jq.Match(`.status.foo.bar == "fr"`),
+				jq.Match(`.status.foo.baz == "fb"`),
+			)),
 		)
 
 	g.Expect(map[string]any{"a": 1}).

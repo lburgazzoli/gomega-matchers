@@ -15,7 +15,14 @@ func TestMatcher(t *testing.T) {
 
 	g := NewWithT(t)
 
-	g.Expect(`a: 1`).Should(yq.Match(`.a == 1`))
+	g.Expect(`a: 1`).Should(
+		yq.Match(`.a == 1`),
+	)
+	g.Expect(`a: 1`).Should(
+		Not(
+			yq.Match(`.a == 2`),
+		),
+	)
 }
 
 func TestMatcherWithType(t *testing.T) {
@@ -26,6 +33,22 @@ func TestMatcherWithType(t *testing.T) {
 	g.Expect(map[string]any{"a": 1}).Should(
 		WithTransform(yaml.Marshal, yq.Match(`.a == 1`)),
 	)
+
+	g.Expect(
+		map[string]any{
+			"status": map[string]any{
+				"foo": map[string]any{
+					"bar": "fr",
+					"baz": "fb",
+				},
+			},
+		}).
+		Should(
+			WithTransform(yaml.Marshal, And(
+				yq.Match(`.status.foo.bar == "fr"`),
+				yq.Match(`.status.foo.baz == "fb"`),
+			)),
+		)
 
 	g.Expect(
 		struct {
