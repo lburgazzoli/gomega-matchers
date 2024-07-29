@@ -2,6 +2,7 @@ package yq
 
 import (
 	"bufio"
+	"bytes"
 	"container/list"
 	"fmt"
 	"strings"
@@ -12,31 +13,6 @@ import (
 
 const (
 	defaultIndent = 2
-)
-
-var (
-	//nolint:gochecknoglobals
-	decoder = yqlib.NewYamlDecoder(yqlib.YamlPreferences{
-		Indent:                      defaultIndent,
-		ColorsEnabled:               false,
-		LeadingContentPreProcessing: true,
-		PrintDocSeparators:          true,
-		UnwrapScalar:                true,
-		EvaluateTogether:            false,
-	})
-
-	//nolint:gochecknoglobals
-	encoder = yqlib.NewYamlEncoder(yqlib.YamlPreferences{
-		Indent:                      defaultIndent,
-		ColorsEnabled:               false,
-		LeadingContentPreProcessing: true,
-		PrintDocSeparators:          true,
-		UnwrapScalar:                true,
-		EvaluateTogether:            false,
-	})
-
-	//nolint:gochecknoglobals
-	evaluator = yqlib.NewAllAtOnceEvaluator()
 )
 
 func formattedMessage(comparisonMessage string, failurePath []interface{}) string {
@@ -87,17 +63,36 @@ func evaluate(expression string, actual interface{}) (*list.List, error) {
 		return nil, err
 	}
 
-	reader := bufio.NewReader(strings.NewReader(data))
+	documents, err := readDocuments([]byte(data))
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := yqlib.NewAllAtOnceEvaluator().EvaluateCandidateNodes(expression, documents)
+	if err != nil {
+		return nil, fmt.Errorf("failure evaluating expression: %w", err)
+	}
+
+	return results, nil
+}
+
+func readDocuments(data []byte) (*list.List, error) {
+	br := bytes.NewReader(data)
+	reader := bufio.NewReader(br)
+
+	decoder := yqlib.NewYamlDecoder(yqlib.YamlPreferences{
+		Indent:                      defaultIndent,
+		ColorsEnabled:               false,
+		LeadingContentPreProcessing: true,
+		PrintDocSeparators:          true,
+		UnwrapScalar:                true,
+		EvaluateTogether:            false,
+	})
 
 	documents, err := yqlib.ReadDocuments(reader, decoder)
 	if err != nil {
 		return nil, fmt.Errorf("failure reading document: %w", err)
 	}
 
-	results, err := evaluator.EvaluateCandidateNodes(expression, documents)
-	if err != nil {
-		return nil, fmt.Errorf("failure evaluating expression: %w", err)
-	}
-
-	return results, nil
+	return documents, nil
 }

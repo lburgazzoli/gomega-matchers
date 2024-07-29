@@ -16,6 +16,15 @@ func Extract(expression string) func(in any) (any, error) {
 
 		out := new(bytes.Buffer)
 
+		encoder := yqlib.NewYamlEncoder(yqlib.YamlPreferences{
+			Indent:                      defaultIndent,
+			ColorsEnabled:               false,
+			LeadingContentPreProcessing: true,
+			PrintDocSeparators:          true,
+			UnwrapScalar:                true,
+			EvaluateTogether:            false,
+		})
+
 		printer := yqlib.NewPrinter(encoder, yqlib.NewSinglePrinterWriter(out))
 		if err := printer.PrintResults(results); err != nil {
 			return "", fmt.Errorf("failure rendering results: %w", err)
