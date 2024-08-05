@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/goccy/go-yaml v1.12.0
 	github.com/itchyny/gojq v0.12.16
-	github.com/mikefarah/yq/v4 v4.44.2
+	github.com/mikefarah/yq/v4 v4.44.3
 	github.com/onsi/gomega v1.34.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 )
