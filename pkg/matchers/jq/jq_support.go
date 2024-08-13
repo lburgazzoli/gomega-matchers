@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/onsi/gomega/format"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func formattedMessage(comparisonMessage string, failurePath []interface{}) string {
@@ -41,6 +42,7 @@ func formattedFailurePath(failurePath []interface{}) string {
 	return strings.Join(formattedPaths, "")
 }
 
+//nolint:cyclop,exhaustive
 func toType(in any) (any, error) {
 	switch v := in.(type) {
 	case string:
@@ -64,9 +66,10 @@ func toType(in any) (any, error) {
 		}
 
 		return d, nil
+	case unstructured.Unstructured:
+		return v.Object, nil
 	}
 
-	//nolint:exhaustive
 	switch reflect.TypeOf(in).Kind() {
 	case reflect.Map:
 		return in, nil
