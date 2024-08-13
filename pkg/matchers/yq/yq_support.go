@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"github.com/goccy/go-yaml"
 	"strings"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
@@ -52,6 +53,13 @@ func toString(in any) (string, error) {
 		return v, nil
 	case []byte:
 		return string(v), nil
+	case yaml.BytesMarshaler:
+		r, err := v.MarshalYAML()
+		if err != nil {
+			return "", err
+		}
+
+		return string(r), nil
 	default:
 		return "", fmt.Errorf("unsupported type:\n%s", format.Object(in, 1))
 	}
