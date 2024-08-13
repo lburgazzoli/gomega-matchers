@@ -5,8 +5,9 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"github.com/goccy/go-yaml"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/onsi/gomega/format"
@@ -56,7 +57,7 @@ func toString(in any) (string, error) {
 	case yaml.BytesMarshaler:
 		r, err := v.MarshalYAML()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("unablt to unmarshal type: %w", err)
 		}
 
 		return string(r), nil
