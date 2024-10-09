@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
+
+	"github.com/onsi/gomega/gbytes"
 
 	"github.com/onsi/gomega/format"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -66,6 +69,25 @@ func toType(in any) (any, error) {
 		}
 
 		return d, nil
+	case *gbytes.Buffer:
+		d, err := byteToType(v.Contents())
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
+	case io.Reader:
+		data, err := io.ReadAll(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read from reader: %w", err)
+		}
+
+		d, err := byteToType(data)
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
 	case unstructured.Unstructured:
 		return v.Object, nil
 	}
@@ -81,6 +103,10 @@ func toType(in any) (any, error) {
 }
 
 func byteToType(in []byte) (any, error) {
+	if len(in) == 0 {
+		return nil, errors.New("a valid Json document is expected")
+	}
+
 	switch in[0] {
 	case '{':
 		data := make(map[string]any)
