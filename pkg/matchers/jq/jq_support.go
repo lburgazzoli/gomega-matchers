@@ -90,6 +90,8 @@ func toType(in any) (any, error) {
 		return d, nil
 	case unstructured.Unstructured:
 		return v.Object, nil
+	case *unstructured.Unstructured:
+		return v.Object, nil
 	}
 
 	switch reflect.TypeOf(in).Kind() {
