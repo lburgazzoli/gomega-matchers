@@ -8,7 +8,7 @@ require (
 	github.com/mikefarah/yq/v4 v4.44.3
 	github.com/onsi/gomega v1.35.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
-	k8s.io/apimachinery v0.31.1
+	k8s.io/apimachinery v0.31.2
 )
 
 require (
