@@ -3,7 +3,7 @@ module github.com/lburgazzoli/gomega-matchers
 go 1.22.2
 
 require (
-	github.com/goccy/go-yaml v1.12.0
+	github.com/goccy/go-yaml v1.13.7
 	github.com/itchyny/gojq v0.12.16
 	github.com/mikefarah/yq/v4 v4.44.3
 	github.com/onsi/gomega v1.35.1
@@ -37,7 +37,6 @@ require (
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
