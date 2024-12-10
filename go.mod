@@ -6,7 +6,7 @@ require (
 	github.com/goccy/go-yaml v1.14.3
 	github.com/itchyny/gojq v0.12.16
 	github.com/mikefarah/yq/v4 v4.44.5
-	github.com/onsi/gomega v1.35.1
+	github.com/onsi/gomega v1.36.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	k8s.io/apimachinery v0.31.2
 )
