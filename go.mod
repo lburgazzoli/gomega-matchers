@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/goccy/go-yaml v1.14.3
 	github.com/itchyny/gojq v0.12.17
-	github.com/mikefarah/yq/v4 v4.44.5
+	github.com/mikefarah/yq/v4 v4.44.6
 	github.com/onsi/gomega v1.36.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	k8s.io/apimachinery v0.31.2
@@ -15,7 +15,7 @@ require (
 	github.com/a8m/envsubst v1.4.2 // indirect
 	github.com/alecthomas/participle/v2 v2.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/elliotchance/orderedmap v1.6.0 // indirect
+	github.com/elliotchance/orderedmap v1.7.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -34,9 +34,9 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
-	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/sys v0.27.0 // indirect
-	golang.org/x/text v0.20.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
