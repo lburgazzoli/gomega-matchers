@@ -3,7 +3,7 @@ module github.com/lburgazzoli/gomega-matchers
 go 1.22.2
 
 require (
-	github.com/goccy/go-yaml v1.14.3
+	github.com/goccy/go-yaml v1.15.11
 	github.com/itchyny/gojq v0.12.17
 	github.com/mikefarah/yq/v4 v4.44.5
 	github.com/onsi/gomega v1.36.1
