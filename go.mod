@@ -1,6 +1,7 @@
 module github.com/lburgazzoli/gomega-matchers
 
 go 1.22.2
+toolchain go1.23.7
 
 require (
 	github.com/goccy/go-yaml v1.15.11
@@ -8,7 +9,7 @@ require (
 	github.com/mikefarah/yq/v4 v4.44.6
 	github.com/onsi/gomega v1.36.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
-	k8s.io/apimachinery v0.31.2
+	k8s.io/apimachinery v0.32.3
 )
 
 require (
@@ -38,10 +39,10 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
-	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
+	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738 // indirect
+	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
