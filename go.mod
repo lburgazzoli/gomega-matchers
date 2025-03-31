@@ -1,9 +1,10 @@
 module github.com/lburgazzoli/gomega-matchers
 
 go 1.22.2
+toolchain go1.24.1
 
 require (
-	github.com/goccy/go-yaml v1.15.11
+	github.com/goccy/go-yaml v1.17.1
 	github.com/itchyny/gojq v0.12.17
 	github.com/mikefarah/yq/v4 v4.44.6
 	github.com/onsi/gomega v1.36.1
