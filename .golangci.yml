@@ -1,35 +1,42 @@
-linters-settings:
-  lll:
-    line-length: 170
-  goconst:
-    ignore-tests: true
-  revive:
-    rules:
-      - name: dot-imports
-        disabled: true
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - wrapcheck
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - exhaustivestruct
-    - exhaustruct
-    - goerr113
-    - golint
-    - interfacer
-    - ireturn
-    - nosnakecase
-    - scopelint
+    - wsl
+    - wsl_v5
     - varnamelen
-    - varcheck
-    - ifshort
-    - deadcode
-    - structcheck
-    - maligned
+    - exhaustruct
+    - funlen
+    - ireturn
+    - revive
+    - lll
     - depguard
+    - err113
+    - forbidigo
+    - paralleltest
+    - nlreturn
+    - mnd
+    - cyclop
+    - forcetypeassert
+    - noinlineerr
+    - gocognit
+    - maintidx
+    - nestif
+
+formatters:
+  enable:
     - gci
-    - gofumpt
-    - testpackage
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - blank
+        - prefix(k8s.io)
+        - blank
+        - prefix(github.com/lburgazzoli/k8s-manifests-lib)
+        - blank
+        - dot
+      custom-order: true

@@ -1,3 +1,6 @@
+// test internal functions
+//
+//nolint:testpackage
 package jq
 
 import (

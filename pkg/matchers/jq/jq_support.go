@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/gbytes"
 
-	"github.com/onsi/gomega/format"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

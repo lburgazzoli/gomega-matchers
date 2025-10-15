@@ -6,12 +6,10 @@ LINT_GOGC := 10
 LINT_TIMEOUT := 10m
 
 ## Tools
-GOIMPORT ?= $(LOCALBIN)/goimports
-GOIMPORT_VERSION ?= latest
-GOLANGCI ?= $(LOCALBIN)/golangci-lint
-GOLANGCI_VERSION ?= v1.57.2
-YQ ?= $(LOCALBIN)/yq
-KUBECTL ?= kubectl
+GOLANGCI_VERSION ?= v2.5.0
+GOLANGCI ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
+GOVULNCHECK_VERSION ?= latest
+GOVULNCHECK ?= go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -39,47 +37,33 @@ clean:
 	go clean -x -testcache
 
 .PHONY: fmt
-fmt: goimport
-	$(GOIMPORT) -l -w .
+fmt:
+	@$(GOLANGCI) fmt --config .golangci.yml
 	go fmt ./...
 
 .PHONY: test
 test:
-	go test ./pkg/... 
+	go test -v ./...
 
 .PHONY: deps
 deps:
 	go mod tidy
 
-.PHONY: check/lint
-check: check/lint
+.PHONY: lint
+lint:
+	@$(GOLANGCI) run --config .golangci.yml --timeout $(LINT_TIMEOUT)
 
-.PHONY: check/lint
-check/lint: golangci-lint
-	@$(GOLANGCI) run \
-		--config .golangci.yml \
-		--out-format tab \
-		--exclude-dirs etc \
-		--timeout $(LINT_TIMEOUT)
+.PHONY: lint/fix
+lint/fix:
+	@$(GOLANGCI) run --config .golangci.yml --timeout $(LINT_TIMEOUT) --fix
+
+.PHONY: vulncheck
+vulncheck:
+	@$(GOVULNCHECK) ./...
 
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	@mkdir -p $(LOCALBIN)
 
-.PHONY: goimport
-goimport: $(GOIMPORT)
-$(GOIMPORT): $(LOCALBIN)
-	@test -s $(GOIMPORT) || \
-	GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@$(GOIMPORT_VERSION)
-
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI)
-$(GOLANGCI): $(LOCALBIN)
-	@test -s $(GOLANGCI) || \
-	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_VERSION)
-
-.PHONY: yq
-yq: $(YQ)
-$(YQ): $(LOCALBIN)
-	@test -s $(LOCALBIN)/yq || \
-	GOBIN=$(LOCALBIN) go install github.com/mikefarah/yq/v4@latest
+.PHONY: check
+check: lint vulncheck
