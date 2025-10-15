@@ -140,6 +140,114 @@ func TestSliceConverter(t *testing.T) {
 	g.Expect(result).Should(Equal(input))
 }
 
+func TestUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    []byte
+		expected any
+	}{
+		{
+			name:     "JSON object",
+			input:    []byte(`{"foo":"bar","num":42}`),
+			expected: map[string]any{"foo": "bar", "num": float64(42)},
+		},
+		{
+			name:     "JSON array",
+			input:    []byte(`["foo","bar",42]`),
+			expected: []any{"foo", "bar", float64(42)},
+		},
+		{
+			name:     "nested JSON object",
+			input:    []byte(`{"outer":{"inner":"value"}}`),
+			expected: map[string]any{"outer": map[string]any{"inner": "value"}},
+		},
+		{
+			name:     "nested JSON array",
+			input:    []byte(`[["a","b"],["c","d"]]`),
+			expected: []any{[]any{"a", "b"}, []any{"c", "d"}},
+		},
+		{
+			name:     "empty object",
+			input:    []byte(`{}`),
+			expected: map[string]any{},
+		},
+		{
+			name:     "empty array",
+			input:    []byte(`[]`),
+			expected: []any{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			result, err := jq.UnmarshalJSON(tt.input)
+
+			g.Expect(err).ShouldNot(HaveOccurred())
+			g.Expect(result).Should(Equal(tt.expected))
+		})
+	}
+}
+
+func TestUnmarshalJSONErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		input         []byte
+		expectedError string
+	}{
+		{
+			name:          "empty byte slice",
+			input:         []byte{},
+			expectedError: "a valid Json document is expected",
+		},
+		{
+			name:          "malformed JSON",
+			input:         []byte(`{"foo": invalid}`),
+			expectedError: "unable to unmarshal result",
+		},
+		{
+			name:          "JSON string primitive",
+			input:         []byte(`"just a string"`),
+			expectedError: "a Json Array or Object is required",
+		},
+		{
+			name:          "JSON number primitive",
+			input:         []byte(`42`),
+			expectedError: "a Json Array or Object is required",
+		},
+		{
+			name:          "JSON boolean primitive",
+			input:         []byte(`true`),
+			expectedError: "a Json Array or Object is required",
+		},
+		{
+			name:          "JSON null primitive",
+			input:         []byte(`null`),
+			expectedError: "a Json Array or Object is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			_, err := jq.UnmarshalJSON(tt.input)
+
+			g.Expect(err).Should(HaveOccurred())
+			g.Expect(err.Error()).Should(ContainSubstring(tt.expectedError))
+		})
+	}
+}
+
 func TestConvert(t *testing.T) {
 	t.Parallel()
 

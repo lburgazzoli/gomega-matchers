@@ -57,26 +57,28 @@ func Convert(in any) (any, error) {
 	return nil, fmt.Errorf("unsuported type:\n%s", format.Object(in, 1))
 }
 
-func unmarshalJSON(in []byte) (any, error) {
+// UnmarshalJSON unmarshals JSON bytes into a JQ-compatible type (map or slice).
+// Returns an error if the input is not valid JSON or is a JSON primitive.
+func UnmarshalJSON(in []byte) (any, error) {
 	if len(in) == 0 {
 		return nil, errors.New("a valid Json document is expected")
 	}
 
-	switch in[0] {
-	case '{':
-		data := make(map[string]any)
-		if err := json.Unmarshal(in, &data); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal result, %w", err)
-		}
+	var result any
+	if err := json.Unmarshal(in, &result); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal result, %w", err)
+	}
 
-		return data, nil
-	case '[':
-		var data []any
-		if err := json.Unmarshal(in, &data); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal result, %w", err)
-		}
+	if result == nil {
+		return nil, errors.New("a Json Array or Object is required")
+	}
 
-		return data, nil
+	kind := reflect.TypeOf(result).Kind()
+
+	//nolint:exhaustive
+	switch kind {
+	case reflect.Map, reflect.Slice:
+		return result, nil
 	default:
 		return nil, errors.New("a Json Array or Object is required")
 	}
@@ -106,7 +108,7 @@ func StringConverter(in any) (any, error) {
 		return nil, ErrTypeNotSupported
 	}
 
-	return unmarshalJSON([]byte(v))
+	return UnmarshalJSON([]byte(v))
 }
 
 // ByteSliceConverter converts []byte to JQ-compatible type.
@@ -116,7 +118,7 @@ func ByteSliceConverter(in any) (any, error) {
 		return nil, ErrTypeNotSupported
 	}
 
-	return unmarshalJSON(v)
+	return UnmarshalJSON(v)
 }
 
 // RawMessageConverter converts json.RawMessage to JQ-compatible type.
@@ -126,7 +128,7 @@ func RawMessageConverter(in any) (any, error) {
 		return nil, ErrTypeNotSupported
 	}
 
-	return unmarshalJSON(v)
+	return UnmarshalJSON(v)
 }
 
 // GBytesBufferConverter converts *gbytes.Buffer to JQ-compatible type.
@@ -136,7 +138,7 @@ func GBytesBufferConverter(in any) (any, error) {
 		return nil, ErrTypeNotSupported
 	}
 
-	return unmarshalJSON(v.Contents())
+	return UnmarshalJSON(v.Contents())
 }
 
 // ReaderConverter converts io.Reader to JQ-compatible type.
@@ -151,7 +153,7 @@ func ReaderConverter(in any) (any, error) {
 		return nil, fmt.Errorf("failed to read from reader: %w", err)
 	}
 
-	return unmarshalJSON(data)
+	return UnmarshalJSON(data)
 }
 
 // UnstructuredConverter converts unstructured.Unstructured to JQ-compatible type.
