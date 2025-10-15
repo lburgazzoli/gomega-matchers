@@ -27,7 +27,7 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 		return false, fmt.Errorf("unable to parse expression %s, %w", matcher.Expression, err)
 	}
 
-	data, err := toType(actual)
+	data, err := Convert(actual)
 	if err != nil {
 		return false, err
 	}

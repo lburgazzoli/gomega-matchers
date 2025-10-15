@@ -57,6 +57,44 @@ Expect(Config{Port: 8080}).Should(
 )
 ```
 
+### Custom Type Converters
+
+Register custom converters for your own types to use them directly with JQ matchers:
+
+```go
+import "github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
+
+type Person struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
+// Register a converter for Person type
+jq.RegisterConverter(func(v any) (any, error) {
+    p, ok := v.(Person)
+    if !ok {
+        return nil, jq.ErrTypeNotSupported
+    }
+
+    data, err := json.Marshal(p)
+    if err != nil {
+        return nil, err
+    }
+
+    var result map[string]any
+    if err := json.Unmarshal(data, &result); err != nil {
+        return nil, err
+    }
+
+    return result, nil
+})
+
+// Now use Person directly without WithTransform
+Expect(Person{Name: "Alice", Age: 30}).Should(
+    jq.Match(`.name == "Alice" and .age == 30`),
+)
+```
+
 ### Array Matching
 
 ```go

@@ -13,7 +13,7 @@ func Extract(expression string) func(in any) (any, error) {
 			return nil, fmt.Errorf("unable to parse expression %s, %w", expression, err)
 		}
 
-		data, err := toType(in)
+		data, err := Convert(in)
 		if err != nil {
 			return false, err
 		}
