@@ -5,7 +5,6 @@ linters:
     # Whitespace/style (too opinionated)
     - wsl
     - wsl_v5
-    - nlreturn
 
     # Naming (too restrictive)
     - varnamelen

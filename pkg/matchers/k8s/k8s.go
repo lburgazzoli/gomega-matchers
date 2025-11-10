@@ -39,6 +39,7 @@ func NamespacedNamed(namespace string, name string) ObjectKey {
 // InNamespace sets the namespace for the ObjectKey, enabling fluent API like Named("foo").InNamespace("bar").
 func (k ObjectKey) InNamespace(namespace string) ObjectKey {
 	k.Namespace = namespace
+
 	return k
 }
 
