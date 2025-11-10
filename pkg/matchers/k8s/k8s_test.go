@@ -248,11 +248,11 @@ func TestListWithJQMatcher(t *testing.T) {
 
 	g.Eventually(k.List(podGVK, client.InNamespace("default"))).
 		WithContext(t.Context()).
-		Should(jq.Match(`.items | length == 2`))
+		Should(jq.Match(`. | length == 2`))
 
 	g.Eventually(k.List(podGVK, client.InNamespace("default"))).
 		WithContext(t.Context()).
-		Should(jq.Match(`.items[0].metadata.name == "pod-1"`))
+		Should(jq.Match(`.[0].metadata.name == "pod-1"`))
 }
 
 func TestListWithLabelSelector(t *testing.T) {

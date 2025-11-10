@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/itchyny/gojq"
+	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/types"
 )
@@ -47,7 +48,7 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 	}
 
 	if err, ok := v.(error); ok {
-		return false, err
+		return false, gomega.StopTrying(err.Error())
 	}
 
 	if match, ok := v.(bool); ok {

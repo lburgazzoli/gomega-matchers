@@ -97,6 +97,7 @@ func registerBuiltinConverters() {
 	RegisterConverter(ReaderConverter)
 	RegisterConverter(UnstructuredConverter)
 	RegisterConverter(UnstructuredPtrConverter)
+	RegisterConverter(UnstructuredListPtrConverter)
 	RegisterConverter(MapConverter)
 	RegisterConverter(SliceConverter)
 }
@@ -174,6 +175,21 @@ func UnstructuredPtrConverter(in any) (any, error) {
 	}
 
 	return v.Object, nil
+}
+
+// UnstructuredListPtrConverter converts *unstructured.UnstructuredList to JQ-compatible type.
+func UnstructuredListPtrConverter(in any) (any, error) {
+	v, ok := in.(*unstructured.UnstructuredList)
+	if !ok {
+		return nil, ErrTypeNotSupported
+	}
+
+	items := make([]any, len(v.Items))
+	for i, item := range v.Items {
+		items[i] = item.Object
+	}
+
+	return items, nil
 }
 
 // MapConverter converts map types to JQ-compatible type (pass-through).
