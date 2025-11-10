@@ -1,6 +1,6 @@
 module github.com/lburgazzoli/gomega-matchers
 
-go 1.24.8
+go 1.24.10
 
 require (
 	github.com/itchyny/gojq v0.12.17
