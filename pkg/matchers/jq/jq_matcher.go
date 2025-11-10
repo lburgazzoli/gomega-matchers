@@ -18,10 +18,10 @@ var _ types.GomegaMatcher = &jqMatcher{}
 
 type jqMatcher struct {
 	Expression       string
-	firstFailurePath []interface{}
+	firstFailurePath []any
 }
 
-func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
+func (matcher *jqMatcher) Match(actual any) (bool, error) {
 	query, err := gojq.Parse(matcher.Expression)
 	if err != nil {
 		return false, fmt.Errorf("unable to parse expression %s, %w", matcher.Expression, err)
@@ -50,10 +50,10 @@ func (matcher *jqMatcher) Match(actual interface{}) (bool, error) {
 	return false, nil
 }
 
-func (matcher *jqMatcher) FailureMessage(actual interface{}) string {
+func (matcher *jqMatcher) FailureMessage(actual any) string {
 	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "to match expression", matcher.Expression), matcher.firstFailurePath)
 }
 
-func (matcher *jqMatcher) NegatedFailureMessage(actual interface{}) string {
+func (matcher *jqMatcher) NegatedFailureMessage(actual any) string {
 	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "not to match expression", matcher.Expression), matcher.firstFailurePath)
 }

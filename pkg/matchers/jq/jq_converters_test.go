@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 	"github.com/onsi/gomega/gbytes"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 
 	. "github.com/onsi/gomega"
 )

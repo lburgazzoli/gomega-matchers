@@ -3,18 +3,20 @@ package k8s_test
 import (
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
+
+	. "github.com/onsi/gomega"
 )
 
 var (

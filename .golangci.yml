@@ -2,26 +2,43 @@ version: "2"
 linters:
   default: all
   disable:
+    # Whitespace/style (too opinionated)
     - wsl
     - wsl_v5
-    - varnamelen
-    - exhaustruct
-    - funlen
-    - ireturn
-    - revive
-    - lll
-    - depguard
-    - err113
-    - forbidigo
-    - paralleltest
     - nlreturn
-    - mnd
+    - lll
+
+    # Naming (too restrictive)
+    - varnamelen
+    - ireturn
+
+    # Complexity (better via code review)
+    - funlen
     - cyclop
-    - forcetypeassert
-    - noinlineerr
     - gocognit
     - maintidx
     - nestif
+
+    # Struct initialization (too strict)
+    - exhaustruct
+
+    # Error handling (too dogmatic for library code)
+    - err113
+    - noinlineerr
+    - forcetypeassert
+    - wrapcheck
+
+    # Testing (context-dependent)
+    - paralleltest
+    - gochecknoglobals
+
+    # Project-specific (not needed)
+    - depguard
+    - forbidigo
+
+    # Linters to potentially revisit
+    - revive
+    - mnd
 
 formatters:
   enable:
@@ -36,7 +53,7 @@ formatters:
         - blank
         - prefix(k8s.io)
         - blank
-        - prefix(github.com/lburgazzoli/k8s-manifests-lib)
+        - prefix(github.com/lburgazzoli/gomega-matchers)
         - blank
         - dot
       custom-order: true
