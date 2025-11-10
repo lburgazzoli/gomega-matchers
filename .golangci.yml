@@ -17,7 +17,6 @@ linters:
     - cyclop
     - gocognit
     - maintidx
-    - nestif
 
     # Struct initialization (too strict)
     - exhaustruct
