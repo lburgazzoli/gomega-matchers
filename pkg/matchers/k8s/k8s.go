@@ -17,9 +17,9 @@ type Matcher struct {
 }
 
 // New creates a new Matcher wrapping the provided client.Client.
-func New(client client.Client) *Matcher {
+func New(cli client.Client) *Matcher {
 	return &Matcher{
-		client: client,
+		client: cli,
 	}
 }
 

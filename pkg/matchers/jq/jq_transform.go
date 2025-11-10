@@ -6,6 +6,12 @@ import (
 	"github.com/itchyny/gojq"
 )
 
+// Extract returns a transform function that extracts a value from input using a JQ expression.
+// The returned function can be used with Gomega's WithTransform matcher combinator.
+//
+// Example:
+//
+//	WithTransform(jq.Extract(`.status`), Equal("ready"))
 func Extract(expression string) func(in any) (any, error) {
 	return func(in any) (any, error) {
 		query, err := gojq.Parse(expression)
@@ -18,17 +24,6 @@ func Extract(expression string) func(in any) (any, error) {
 			return false, err
 		}
 
-		it := query.Run(data)
-
-		v, ok := it.Next()
-		if !ok {
-			return false, nil
-		}
-
-		if err, ok := v.(error); ok {
-			return false, err
-		}
-
-		return v, nil
+		return Run(query, data)
 	}
 }

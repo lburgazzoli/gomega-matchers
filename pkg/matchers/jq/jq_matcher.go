@@ -8,9 +8,16 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-func Match(format string, args ...any) types.GomegaMatcher {
+// Match creates a Gomega matcher that evaluates a JQ expression against the actual value.
+// The expression should return a boolean result. Supports format string with args for dynamic expressions.
+//
+// Example:
+//
+//	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
+//	Expect(data).Should(jq.Match(`.status.phase == "%s"`, "Running"))
+func Match(f string, args ...any) types.GomegaMatcher {
 	return &jqMatcher{
-		Expression: fmt.Sprintf(format, args...),
+		Expression: fmt.Sprintf(f, args...),
 	}
 }
 
