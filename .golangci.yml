@@ -22,7 +22,6 @@ linters:
     # Error handling (too dogmatic for library code)
     - err113
     - noinlineerr
-    - forcetypeassert
     - wrapcheck
 
     # Testing (context-dependent)
