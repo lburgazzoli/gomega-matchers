@@ -51,7 +51,9 @@ func (k ObjectKey) ToNamespacedName() types.NamespacedName {
 // The returned function is compatible with Gomega's Eventually() and Expect().
 //
 // For cluster-scoped resources, use Named("resource-name").
-// For namespaced resources, use Named("resource-name").InNamespace("namespace") or NamespacedNamed("namespace", "name").
+//
+// For namespaced resources, use Named("resource-name").InNamespace("namespace")
+// or NamespacedNamed("namespace", "name").
 //
 // Example:
 //
@@ -110,7 +112,10 @@ func (m *Matcher) List(
 // The returned function is compatible with Gomega's Eventually() and Expect().
 //
 // For cluster-scoped resources, use Named("resource-name").
-// For namespaced resources, use Named("resource-name").InNamespace("namespace") or NamespacedNamed("namespace", "name").
+//
+// For namespaced resources, use Named("resource-name").InNamespace("namespace")
+// or NamespacedNamed("namespace", "name").
+//
 // Options can include client.GracePeriodSeconds() for deletion grace period, etc.
 //
 // Example:

@@ -58,9 +58,15 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 }
 
 func (matcher *jqMatcher) FailureMessage(actual any) string {
-	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "to match expression", matcher.Expression), matcher.firstFailurePath)
+	a := fmt.Sprintf("%v", actual)
+	m := format.Message(a, "to match expression", matcher.Expression)
+
+	return formattedMessage(m, matcher.firstFailurePath)
 }
 
 func (matcher *jqMatcher) NegatedFailureMessage(actual any) string {
-	return formattedMessage(format.Message(fmt.Sprintf("%v", actual), "not to match expression", matcher.Expression), matcher.firstFailurePath)
+	a := fmt.Sprintf("%v", actual)
+	m := format.Message(a, "not to match expression", matcher.Expression)
+
+	return formattedMessage(m, matcher.firstFailurePath)
 }

@@ -6,7 +6,6 @@ linters:
     - wsl
     - wsl_v5
     - nlreturn
-    - lll
 
     # Naming (too restrictive)
     - varnamelen
