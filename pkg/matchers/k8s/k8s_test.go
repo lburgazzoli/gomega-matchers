@@ -89,11 +89,11 @@ func TestGetWithJQMatcher(t *testing.T) {
 
 	k := k8s.New(c)
 
-	g.Eventually(k.Get(podGVK, k8s.Named("test-pod").InNamespace("default"))).
+	g.Eventually(k.Get(podGVK, k8s.Named(pod.Name).InNamespace(pod.Namespace))).
 		WithContext(t.Context()).
 		Should(jq.Match(`.status.phase == "Running"`))
 
-	g.Eventually(k.Get(podGVK, k8s.Named("test-pod").InNamespace("default"))).
+	g.Eventually(k.Get(podGVK, k8s.Named(pod.Name).InNamespace(pod.Namespace))).
 		WithContext(t.Context()).
 		Should(jq.Match(`.metadata.labels.app == "test"`))
 }
