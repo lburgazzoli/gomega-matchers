@@ -152,7 +152,7 @@ The library provides helper functions for testing Kubernetes resources with Gome
 
 ### Typed API (Recommended)
 
-The typed API accepts Kubernetes typed objects (e.g., `*corev1.ConfigMap`) and returns unstructured results compatible with JQ matchers:
+The typed API accepts Kubernetes typed objects (e.g., `*corev1.ConfigMap`) and returns functions compatible with Gomega's `Eventually()` for async assertions:
 
 ```go
 import (
@@ -166,45 +166,48 @@ import (
 // Create a typed matcher
 k := k8s.New(client, scheme)
 
-// Get a resource
-obj, err := k.Get(ctx, &corev1.ConfigMap{
+// Get a resource with Eventually
+Eventually(k.Get(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})
-Expect(err).ToNot(HaveOccurred())
-Expect(obj).Should(jq.Match(`.data.key == "value"`))
+})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
 
 // List resources
-list, err := k.List(ctx, &corev1.ConfigMapList{},
+Eventually(k.List(&corev1.ConfigMapList{},
     client.InNamespace("default"),
     client.MatchingLabels{"app": "myapp"},
-)
-Expect(err).ToNot(HaveOccurred())
-Expect(list).Should(jq.Match(`. | length > 0`))
+)).WithContext(ctx).Should(jq.Match(`. | length > 0`))
 
 // Update a resource (Komega-style)
-obj, err := k.Update(ctx, &corev1.ConfigMap{
+Eventually(k.Update(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-}, func(cm client.Object) {
-    configMap := cm.(*corev1.ConfigMap)
+}, func(obj client.Object) {
+    configMap := obj.(*corev1.ConfigMap)
     configMap.Data["key"] = "new-value"
-})
-Expect(err).ToNot(HaveOccurred())
-Expect(obj).Should(jq.Match(`.data.key == "new-value"`))
+})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
 
 // Delete a resource
-err := k.Delete(ctx, &corev1.ConfigMap{
+Eventually(k.Delete(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})
+})).WithContext(ctx).Should(Succeed())
+
+// Direct invocation is also supported when needed
+obj, err := k.Get(&corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+})(ctx)
 Expect(err).ToNot(HaveOccurred())
+Expect(obj).Should(jq.Match(`.data.key == "value"`))
 ```
 
 ### Unstructured API

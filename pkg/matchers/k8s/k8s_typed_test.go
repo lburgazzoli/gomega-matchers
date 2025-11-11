@@ -8,7 +8,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -42,21 +41,16 @@ func TestTypedGet(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	obj, err := k.Get(t.Context(), &corev1.ConfigMap{
+	g.Eventually(k.Get(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
 		},
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(obj).ToNot(BeNil())
-	g.Expect(obj.GetName()).To(Equal("test-config"))
-	g.Expect(obj.GetNamespace()).To(Equal("default"))
-
-	data, found, err := unstructured.NestedString(obj.Object, "data", "key1")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(found).To(BeTrue())
-	g.Expect(data).To(Equal("value1"))
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.metadata.name == "test-config" and
+		.metadata.namespace == "default" and
+		.data.key1 == "value1"
+	`))
 }
 
 func TestTypedGetWithJQMatcher(t *testing.T) {
@@ -86,15 +80,19 @@ func TestTypedGetWithJQMatcher(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	obj, err := k.Get(t.Context(), &corev1.ConfigMap{
+	g.Eventually(k.Get(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
 		},
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(obj).Should(jq.Match(`.data.database == "postgres"`))
-	g.Expect(obj).Should(jq.Match(`.metadata.labels.env == "prod"`))
+	})).WithContext(t.Context()).Should(jq.Match(`.data.database == "postgres"`))
+
+	g.Eventually(k.Get(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	})).WithContext(t.Context()).Should(jq.Match(`.metadata.labels.env == "prod"`))
 }
 
 func TestTypedList(t *testing.T) {
@@ -132,10 +130,9 @@ func TestTypedList(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	list, err := k.List(t.Context(), &corev1.ConfigMapList{}, client.InNamespace("default"))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(list).ToNot(BeNil())
-	g.Expect(list.Items).To(HaveLen(2))
+	g.Eventually(k.List(&corev1.ConfigMapList{}, client.InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(jq.Match(`. | length == 2`))
 }
 
 func TestTypedListWithJQMatcher(t *testing.T) {
@@ -172,9 +169,9 @@ func TestTypedListWithJQMatcher(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	list, err := k.List(t.Context(), &corev1.ConfigMapList{}, client.InNamespace("default"))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(list).Should(jq.Match(`. | length == 2`))
+	g.Eventually(k.List(&corev1.ConfigMapList{}, client.InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(jq.Match(`. | length == 2`))
 }
 
 func TestTypedDelete(t *testing.T) {
@@ -198,16 +195,15 @@ func TestTypedDelete(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	err := k.Delete(t.Context(), &corev1.ConfigMap{
+	g.Eventually(k.Delete(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
 		},
-	})
-	g.Expect(err).ToNot(HaveOccurred())
+	})).WithContext(t.Context()).Should(Succeed())
 
 	result := &corev1.ConfigMap{}
-	err = c.Get(t.Context(), types.NamespacedName{Name: "test-config", Namespace: "default"}, result)
+	err := c.Get(t.Context(), types.NamespacedName{Name: "test-config", Namespace: "default"}, result)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -235,7 +231,7 @@ func TestTypedUpdate(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	obj, err := k.Update(t.Context(), &corev1.ConfigMap{
+	g.Eventually(k.Update(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
@@ -245,20 +241,10 @@ func TestTypedUpdate(t *testing.T) {
 		g.Expect(ok).To(BeTrue())
 		configMap.Data["key1"] = "updated"
 		configMap.Data["key2"] = "new"
-	})
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(obj).ToNot(BeNil())
-
-	data, found, err := unstructured.NestedString(obj.Object, "data", "key1")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(found).To(BeTrue())
-	g.Expect(data).To(Equal("updated"))
-
-	data2, found, err := unstructured.NestedString(obj.Object, "data", "key2")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(found).To(BeTrue())
-	g.Expect(data2).To(Equal("new"))
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.data.key1 == "updated" and
+		.data.key2 == "new"
+	`))
 }
 
 func TestTypedUpdateWithJQMatcher(t *testing.T) {
@@ -285,7 +271,7 @@ func TestTypedUpdateWithJQMatcher(t *testing.T) {
 
 	k := k8s.New(c, scheme)
 
-	obj, err := k.Update(t.Context(), &corev1.ConfigMap{
+	g.Eventually(k.Update(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
@@ -294,8 +280,5 @@ func TestTypedUpdateWithJQMatcher(t *testing.T) {
 		configMap, ok := o.(*corev1.ConfigMap)
 		g.Expect(ok).To(BeTrue())
 		configMap.Data["status"] = "completed"
-	})
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(obj).Should(jq.Match(`.data.status == "completed"`))
+	})).WithContext(t.Context()).Should(jq.Match(`.data.status == "completed"`))
 }
