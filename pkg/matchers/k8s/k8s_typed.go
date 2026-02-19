@@ -155,38 +155,47 @@ func (m *Matcher) Update(
 	opts ...client.UpdateOption,
 ) func(context.Context) (*unstructured.Unstructured, error) {
 	return func(ctx context.Context) (*unstructured.Unstructured, error) {
-		gvk, key, err := m.extractGVKAndKey(obj)
-		if err != nil {
-			return nil, err
-		}
-
-		current, ok := obj.DeepCopyObject().(client.Object)
-		if !ok {
-			return nil, errors.New("failed to convert deep copy to client.Object")
-		}
-
-		err = m.client.Get(ctx, key.ToNamespacedName(), current)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get resource for update: %w", err)
-		}
-
-		updateFunc(current)
-
-		err = m.client.Update(ctx, current, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update resource: %w", err)
-		}
-
-		result := &unstructured.Unstructured{}
-		result.SetGroupVersionKind(gvk)
-
-		err = m.client.Get(ctx, key.ToNamespacedName(), result)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get updated resource: %w", err)
-		}
-
-		return result, nil
+		return m.doUpdate(ctx, obj, updateFunc, opts...)
 	}
+}
+
+func (m *Matcher) doUpdate(
+	ctx context.Context,
+	obj client.Object,
+	updateFunc func(client.Object),
+	opts ...client.UpdateOption,
+) (*unstructured.Unstructured, error) {
+	gvk, key, err := m.extractGVKAndKey(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	current, ok := obj.DeepCopyObject().(client.Object)
+	if !ok {
+		return nil, errors.New("failed to convert deep copy to client.Object")
+	}
+
+	err = m.client.Get(ctx, key.ToNamespacedName(), current)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource for update: %w", err)
+	}
+
+	updateFunc(current)
+
+	err = m.client.Update(ctx, current, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update resource: %w", err)
+	}
+
+	result := &unstructured.Unstructured{}
+	result.SetGroupVersionKind(gvk)
+
+	err = m.client.Get(ctx, key.ToNamespacedName(), result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get updated resource: %w", err)
+	}
+
+	return result, nil
 }
 
 // extractGVKAndKey extracts GroupVersionKind and ObjectKey from a typed Kubernetes object.

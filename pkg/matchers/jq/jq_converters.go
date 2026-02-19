@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/big"
 	"reflect"
 	"sync"
 
@@ -46,7 +48,7 @@ func Convert(in any) (any, error) {
 	for _, converter := range converters {
 		result, err := converter(in)
 		if err == nil {
-			return result, nil
+			return normalizeForJQ(result), nil
 		}
 
 		if !errors.Is(err, ErrTypeNotSupported) {
@@ -213,4 +215,84 @@ func SliceConverter(in any) (any, error) {
 	}
 
 	return in, nil
+}
+
+// normalizeForJQ converts Go numeric types that gojq does not accept
+// (int64, int32, uint64, etc.) into the types gojq supports: int,
+// float64, and *big.Int. Kubernetes unstructured objects typically
+// store integers as int64, which gojq >= 0.12.18 no longer normalizes.
+func normalizeForJQ(v any) any {
+	switch v := v.(type) {
+	case map[string]any:
+		for k, val := range v {
+			v[k] = normalizeForJQ(val)
+		}
+
+		return v
+	case []any:
+		for i, val := range v {
+			v[i] = normalizeForJQ(val)
+		}
+
+		return v
+	default:
+		return normalizeNumeric(v)
+	}
+}
+
+func normalizeNumeric(v any) any {
+	switch v := v.(type) {
+	case int64, int32, int16, int8:
+		return normalizeSignedInt(v)
+	case uint64, uint32, uint16, uint8, uint:
+		return normalizeUnsignedInt(v)
+	case float32:
+		return float64(v)
+	default:
+		return v
+	}
+}
+
+func normalizeSignedInt(v any) any {
+	switch v := v.(type) {
+	case int64:
+		if v >= math.MinInt && v <= math.MaxInt {
+			return int(v)
+		}
+
+		return big.NewInt(v)
+	case int32:
+		return int(v)
+	case int16:
+		return int(v)
+	case int8:
+		return int(v)
+	default:
+		return v
+	}
+}
+
+func normalizeUnsignedInt(v any) any {
+	switch v := v.(type) {
+	case uint64:
+		if v <= math.MaxInt {
+			return int(v)
+		}
+
+		return new(big.Int).SetUint64(v)
+	case uint32:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint8:
+		return int(v)
+	case uint:
+		if v <= math.MaxInt {
+			return int(v)
+		}
+
+		return new(big.Int).SetUint64(uint64(v))
+	default:
+		return v
+	}
 }

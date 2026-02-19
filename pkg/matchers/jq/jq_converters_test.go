@@ -3,6 +3,8 @@ package jq_test
 import (
 	"encoding/json"
 	"errors"
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -526,4 +528,190 @@ func TestCustomStructConverter(t *testing.T) {
 	g.Expect(Person{Name: "Alice", Age: 30}).Should(
 		jq.Match(`.name == "Alice" and .age == 30`),
 	)
+}
+
+func TestConvertNormalizesInt64InMap(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := map[string]any{
+		"name":       "test",
+		"generation": int64(3),
+		"nested": map[string]any{
+			"replicas": int64(5),
+		},
+	}
+
+	result, err := jq.Convert(input)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	m, ok := result.(map[string]any)
+	g.Expect(ok).Should(BeTrue())
+	g.Expect(m["generation"]).Should(BeAssignableToTypeOf(int(0)))
+	g.Expect(m["generation"]).Should(Equal(3))
+
+	nested, ok := m["nested"].(map[string]any)
+	g.Expect(ok).Should(BeTrue())
+	g.Expect(nested["replicas"]).Should(BeAssignableToTypeOf(int(0)))
+	g.Expect(nested["replicas"]).Should(Equal(5))
+}
+
+func TestConvertNormalizesInt64InSlice(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := []any{int64(1), int64(2), int64(3)}
+
+	result, err := jq.Convert(input)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	s, ok := result.([]any)
+	g.Expect(ok).Should(BeTrue())
+
+	for i, v := range s {
+		g.Expect(v).Should(BeAssignableToTypeOf(int(0)), "index %d", i)
+	}
+
+	g.Expect(s).Should(Equal([]any{1, 2, 3}))
+}
+
+func TestConvertNormalizesNumericTypes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    any
+		expected any
+	}{
+		{
+			name:     "int64",
+			input:    map[string]any{"v": int64(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "int32",
+			input:    map[string]any{"v": int32(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "int16",
+			input:    map[string]any{"v": int16(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "int8",
+			input:    map[string]any{"v": int8(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "uint64",
+			input:    map[string]any{"v": uint64(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "uint32",
+			input:    map[string]any{"v": uint32(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "uint16",
+			input:    map[string]any{"v": uint16(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "uint8",
+			input:    map[string]any{"v": uint8(42)},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "float32",
+			input:    map[string]any{"v": float32(3.14)},
+			expected: map[string]any{"v": float64(float32(3.14))},
+		},
+		{
+			name:     "int passthrough",
+			input:    map[string]any{"v": 42},
+			expected: map[string]any{"v": 42},
+		},
+		{
+			name:     "float64 passthrough",
+			input:    map[string]any{"v": 3.14},
+			expected: map[string]any{"v": 3.14},
+		},
+		{
+			name:     "string passthrough",
+			input:    map[string]any{"v": "hello"},
+			expected: map[string]any{"v": "hello"},
+		},
+		{
+			name:     "bool passthrough",
+			input:    map[string]any{"v": true},
+			expected: map[string]any{"v": true},
+		},
+		{
+			name:     "nil passthrough",
+			input:    map[string]any{"v": nil},
+			expected: map[string]any{"v": nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			result, err := jq.Convert(tt.input)
+
+			g.Expect(err).ShouldNot(HaveOccurred())
+			g.Expect(result).Should(Equal(tt.expected))
+		})
+	}
+}
+
+func TestConvertNormalizesLargeIntToBigInt(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	largeUint64 := uint64(math.MaxInt) + 1
+
+	input := map[string]any{"v": largeUint64}
+
+	result, err := jq.Convert(input)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	m, ok := result.(map[string]any)
+	g.Expect(ok).Should(BeTrue())
+	g.Expect(m["v"]).Should(BeAssignableToTypeOf(&big.Int{}))
+	g.Expect(m["v"].(*big.Int).Uint64()).Should(Equal(largeUint64)) //nolint:forcetypeassert
+}
+
+func TestConvertNormalizesUnstructuredInt64(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":       "test",
+				"generation": int64(7),
+			},
+			"data": map[string]any{
+				"count": int64(42),
+			},
+		},
+	}
+
+	g.Expect(obj).Should(jq.Match(`.metadata.generation == 7`))
+	g.Expect(obj).Should(jq.Match(`.data.count == 42`))
+	g.Expect(obj).Should(jq.Match(`.data.count > 10`))
 }
