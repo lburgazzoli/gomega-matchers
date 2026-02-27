@@ -6,7 +6,7 @@ require (
 	github.com/itchyny/gojq v0.12.18
 	github.com/onsi/gomega v1.39.1
 	k8s.io/api v0.35.1
-	k8s.io/apimachinery v0.35.1
+	k8s.io/apimachinery v0.35.2
 	sigs.k8s.io/controller-runtime v0.23.1
 )
 
