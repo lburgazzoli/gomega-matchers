@@ -3,7 +3,7 @@ module github.com/lburgazzoli/gomega-matchers
 go 1.25.7
 
 require (
-	github.com/itchyny/gojq v0.12.18
+	github.com/itchyny/gojq v0.12.19
 	github.com/onsi/gomega v1.39.1
 	k8s.io/api v0.35.1
 	k8s.io/apimachinery v0.35.1
@@ -33,7 +33,7 @@ require (
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/itchyny/timefmt-go v0.1.7 // indirect
+	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
