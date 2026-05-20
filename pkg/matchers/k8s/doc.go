@@ -10,17 +10,20 @@
 //		. "github.com/onsi/gomega"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
+//		"k8s.io/apimachinery/pkg/runtime/schema"
 //		"sigs.k8s.io/controller-runtime/pkg/client"
 //	)
 //
-//	k := k8s.New(client)
+//	k := k8s.NewUnstructured(client)
 //	podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 //
 //	// Wait for pod to be ready
-//	Eventually(k.Get(podGVK, "my-pod", client.InNamespace("default"))).
-//		Should(jq.Match(".status.phase == \"Running\""))
+//	Eventually(k.Get(podGVK, k8s.Named("my-pod").InNamespace("default"))).
+//		WithContext(ctx).
+//		Should(jq.Match(`.status.phase == "Running"`))
 //
 //	// List all pods in namespace
 //	Eventually(k.List(podGVK, client.InNamespace("default"))).
-//		Should(jq.Match(".items | length > 0"))
+//		WithContext(ctx).
+//		Should(jq.Match(`. | length > 0`))
 package k8s
