@@ -22,6 +22,11 @@
 //		WithContext(ctx).
 //		Should(jq.Match(`.status.phase == "Running"`))
 //
+//	// Wait for pod to be deleted
+//	Eventually(k.Gone(podGVK, k8s.Named("my-pod").InNamespace("default"))).
+//		WithContext(ctx).
+//		Should(BeTrue())
+//
 //	// List all pods in namespace
 //	Eventually(k.List(podGVK, client.InNamespace("default"))).
 //		WithContext(ctx).

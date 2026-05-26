@@ -54,6 +54,17 @@ func (m *UnstructuredMatcher) Get(
 	}
 }
 
+// Gone returns a function that reports whether a Kubernetes resource is absent.
+// The returned function is compatible with Gomega's Eventually() and is intended
+// to be asserted with BeTrue().
+func (m *UnstructuredMatcher) Gone(
+	gvk schema.GroupVersionKind,
+	key ObjectKey,
+	opts ...client.GetOption,
+) func(context.Context) (bool, error) {
+	return gone(m.Get(gvk, key, opts...))
+}
+
 // List returns a function that retrieves a list of Kubernetes resources by GVK.
 // The returned function is compatible with Gomega's Eventually() and Expect().
 //

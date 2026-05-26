@@ -1,6 +1,11 @@
 package k8s
 
 import (
+	"context"
+
+	"github.com/onsi/gomega"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -27,4 +32,19 @@ func (k ObjectKey) InNamespace(namespace string) ObjectKey {
 // ToNamespacedName converts ObjectKey back to types.NamespacedName.
 func (k ObjectKey) ToNamespacedName() types.NamespacedName {
 	return types.NamespacedName(k)
+}
+
+func gone[T any](get func(context.Context) (T, error)) func(context.Context) (bool, error) {
+	return func(ctx context.Context) (bool, error) {
+		_, err := get(ctx)
+		if err == nil {
+			return false, nil
+		}
+
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+
+		return false, gomega.StopTrying("failed to determine whether resource is gone").Wrap(err)
+	}
 }

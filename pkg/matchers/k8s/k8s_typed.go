@@ -64,6 +64,16 @@ func (m *Matcher) Get(
 	}
 }
 
+// Gone returns a function that reports whether a typed Kubernetes resource is absent.
+// The returned function is compatible with Gomega's Eventually() and is intended
+// to be asserted with BeTrue().
+func (m *Matcher) Gone(
+	obj client.Object,
+	opts ...client.GetOption,
+) func(context.Context) (bool, error) {
+	return gone(m.Get(obj, opts...))
+}
+
 // List retrieves a list of Kubernetes resources using a typed list object.
 // The GVK is automatically extracted from the list type using the scheme.
 // Returns a function that can be used with Gomega's Eventually for async assertions.

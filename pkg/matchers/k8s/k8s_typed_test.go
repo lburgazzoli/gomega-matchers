@@ -95,6 +95,56 @@ func TestTypedGetWithJQMatcher(t *testing.T) {
 	})).WithContext(t.Context()).Should(jq.Match(`.metadata.labels.env == "prod"`))
 }
 
+func TestTypedGone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.New(c, scheme)
+
+	g.Eventually(k.Gone(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "missing-config",
+			Namespace: "default",
+		},
+	})).WithContext(t.Context()).Should(BeTrue())
+}
+
+func TestTypedGoneExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cm).
+		Build()
+
+	k := k8s.New(c, scheme)
+
+	g.Eventually(k.Gone(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	})).WithContext(t.Context()).Should(BeFalse())
+}
+
 func TestTypedList(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

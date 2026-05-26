@@ -102,6 +102,50 @@ func TestGetNotFound(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestGone(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewUnstructured(c)
+
+	g.Eventually(k.Gone(podGVK, k8s.Named("nonexistent").InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(BeTrue())
+}
+
+func TestGoneExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(pod).
+		Build()
+
+	k := k8s.NewUnstructured(c)
+
+	g.Eventually(k.Gone(podGVK, k8s.Named("test-pod").InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(BeFalse())
+}
+
 func TestGetClusterScoped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
