@@ -77,38 +77,11 @@ func UnmarshalJSON(in []byte) (any, error) {
 
 	kind := reflect.TypeOf(result).Kind()
 
-	switch kind {
-	case reflect.Map, reflect.Slice:
-		return result, nil
-	case reflect.Invalid,
-		reflect.Bool,
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64,
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64,
-		reflect.Uintptr,
-		reflect.Float32,
-		reflect.Float64,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.Array,
-		reflect.Chan,
-		reflect.Func,
-		reflect.Interface,
-		reflect.Pointer,
-		reflect.String,
-		reflect.Struct,
-		reflect.UnsafePointer:
+	if kind != reflect.Map && kind != reflect.Slice {
 		return nil, errors.New("a Json Array or Object is required")
 	}
 
-	return nil, errors.New("a Json Array or Object is required")
+	return result, nil
 }
 
 //nolint:gochecknoinits
