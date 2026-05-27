@@ -6,6 +6,7 @@ import (
 	"github.com/onsi/gomega"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -41,7 +42,7 @@ func gone[T any](get func(context.Context) (T, error)) func(context.Context) (bo
 			return false, nil
 		}
 
-		if apierrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) || apimeta.IsNoMatchError(err) {
 			return true, nil
 		}
 
