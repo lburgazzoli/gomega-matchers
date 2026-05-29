@@ -31,4 +31,18 @@
 //	Eventually(k.List(podGVK, client.InNamespace("default"))).
 //		WithContext(ctx).
 //		Should(jq.Match(`. | length > 0`))
+//
+//	// Wait for an event for a specific object
+//	typed := k8s.New(client, scheme)
+//	Eventually(typed.Events(
+//		k8s.InNamespace("default"),
+//		k8s.ForObject(corev1.ObjectReference{
+//			Kind: "Pod",
+//			Name: "my-pod",
+//		}),
+//	)).WithContext(ctx).Should(ContainElement(
+//		gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+//			"Reason": Equal("Ready"),
+//		}),
+//	))
 package k8s
