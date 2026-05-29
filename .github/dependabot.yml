@@ -12,3 +12,8 @@ updates:
       interval: daily
       time: "19:30"
       timezone: Europe/Paris
+    groups:
+      kubernetes-dependencies:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
