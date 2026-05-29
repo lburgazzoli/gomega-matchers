@@ -161,6 +161,8 @@ import (
     "github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
     corev1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/runtime/schema"
+    "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Create a typed matcher
@@ -208,6 +210,24 @@ obj, err := k.Get(&corev1.ConfigMap{
 })(ctx)
 Expect(err).ToNot(HaveOccurred())
 Expect(obj).Should(jq.Match(`.data.key == "value"`))
+
+// Compose object-based metadata and GVK matchers
+Eventually(k.Get(&corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+})).WithContext(ctx).Should(SatisfyAll(
+    k8s.HasName("my-config"),
+    k8s.HasNamespace("default"),
+    k8s.HasLabel("app", "myapp"),
+    k8s.HasAnnotation("managed-by", "operator"),
+    k8s.MatchesGroupVersion(schema.GroupVersion{Version: "v1"}),
+    k8s.MatchesGroupVersionKind(schema.GroupVersionKind{
+        Version: "v1",
+        Kind:    "ConfigMap",
+    }),
+))
 ```
 
 ### Unstructured API
