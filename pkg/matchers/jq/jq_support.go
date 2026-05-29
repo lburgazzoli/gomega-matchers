@@ -2,6 +2,7 @@ package jq
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/itchyny/gojq"
@@ -20,8 +21,8 @@ func formattedMessage(comparisonMessage string, failurePath []any) string {
 func formattedFailurePath(failurePath []any) string {
 	formattedPaths := make([]string, 0)
 
-	for i := len(failurePath) - 1; i >= 0; i-- {
-		switch p := failurePath[i].(type) {
+	for i, p := range slices.Backward(failurePath) {
+		switch p := p.(type) {
 		case int:
 			val := fmt.Sprintf(`[%d]`, p)
 			formattedPaths = append(formattedPaths, val)

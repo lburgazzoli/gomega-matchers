@@ -31,6 +31,7 @@ linters:
     # Project-specific (not needed)
     - depguard
     - forbidigo
+    - gomodguard
 
     # Linters to potentially revisit
     - mnd
@@ -38,6 +39,7 @@ linters:
     rules:
       - path: '.*_test\.go$'
         linters:
+          - goconst
           - mnd
           - revive
       - path: pkg/resources/gvks/gvks\.go
