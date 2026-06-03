@@ -43,8 +43,7 @@ func ResetConverters() {
 	convertersMu.Lock()
 	defer convertersMu.Unlock()
 
-	converters = nil
-	registerBuiltinConverters()
+	converters = builtinConverters()
 }
 
 // Convert converts an input value to a JQ-compatible type (map or slice).
@@ -94,17 +93,19 @@ func UnmarshalJSON(in []byte) (any, error) {
 
 //nolint:gochecknoinits
 func init() {
-	registerBuiltinConverters()
+	converters = builtinConverters()
 }
 
-func registerBuiltinConverters() {
-	RegisterConverter(StringConverter)
-	RegisterConverter(ByteSliceConverter)
-	RegisterConverter(RawMessageConverter)
-	RegisterConverter(GBytesBufferConverter)
-	RegisterConverter(ReaderConverter)
-	RegisterConverter(MapConverter)
-	RegisterConverter(SliceConverter)
+func builtinConverters() []ConverterFunc {
+	return []ConverterFunc{
+		SliceConverter,
+		MapConverter,
+		ReaderConverter,
+		GBytesBufferConverter,
+		RawMessageConverter,
+		ByteSliceConverter,
+		StringConverter,
+	}
 }
 
 // StringConverter converts string to JQ-compatible type.
