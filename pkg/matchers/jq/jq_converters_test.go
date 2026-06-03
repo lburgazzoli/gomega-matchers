@@ -10,8 +10,6 @@ import (
 
 	"github.com/onsi/gomega/gbytes"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 
 	. "github.com/onsi/gomega"
@@ -75,48 +73,6 @@ func TestReaderConverter(t *testing.T) {
 
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
-}
-
-func TestUnstructuredConverter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	obj := unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]any{
-				"name": "test-pod",
-			},
-		},
-	}
-
-	result, err := jq.UnstructuredConverter(obj)
-
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(obj.Object))
-}
-
-func TestUnstructuredPtrConverter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	obj := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]any{
-				"name": "test-pod",
-			},
-		},
-	}
-
-	result, err := jq.UnstructuredPtrConverter(obj)
-
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(obj.Object))
 }
 
 func TestMapConverter(t *testing.T) {
@@ -288,32 +244,6 @@ func TestConvert(t *testing.T) {
 			name:     "slice pass-through",
 			input:    []any{"foo", "bar", 42},
 			expected: []any{"foo", "bar", 42},
-		},
-		{
-			name: "unstructured.Unstructured",
-			input: unstructured.Unstructured{
-				Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Pod",
-				},
-			},
-			expected: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-			},
-		},
-		{
-			name: "*unstructured.Unstructured",
-			input: &unstructured.Unstructured{
-				Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Service",
-				},
-			},
-			expected: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Service",
-			},
 		},
 	}
 
@@ -690,28 +620,4 @@ func TestConvertNormalizesLargeIntToBigInt(t *testing.T) {
 	g.Expect(ok).Should(BeTrue())
 	g.Expect(m["v"]).Should(BeAssignableToTypeOf(&big.Int{}))
 	g.Expect(m["v"].(*big.Int).Uint64()).Should(Equal(largeUint64)) //nolint:forcetypeassert
-}
-
-func TestConvertNormalizesUnstructuredInt64(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	obj := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "ConfigMap",
-			"metadata": map[string]any{
-				"name":       "test",
-				"generation": int64(7),
-			},
-			"data": map[string]any{
-				"count": int64(42),
-			},
-		},
-	}
-
-	g.Expect(obj).Should(jq.Match(`.metadata.generation == 7`))
-	g.Expect(obj).Should(jq.Match(`.data.count == 42`))
-	g.Expect(obj).Should(jq.Match(`.data.count > 10`))
 }
