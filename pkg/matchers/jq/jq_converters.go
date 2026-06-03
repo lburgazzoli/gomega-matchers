@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"reflect"
@@ -145,21 +144,6 @@ func GBytesBufferConverter(in any) (any, error) {
 	}
 
 	return UnmarshalJSON(v.Contents())
-}
-
-// ReaderConverter converts io.Reader to JQ-compatible type.
-func ReaderConverter(in any) (any, error) {
-	v, ok := in.(io.Reader)
-	if !ok {
-		return nil, ErrTypeNotSupported
-	}
-
-	data, err := io.ReadAll(v)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read from reader: %w", err)
-	}
-
-	return UnmarshalJSON(data)
 }
 
 // MapConverter converts map types to JQ-compatible type (pass-through).
