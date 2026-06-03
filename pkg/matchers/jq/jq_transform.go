@@ -17,9 +17,9 @@ func Extract(expression string) func(in any) (any, error) {
 
 	return func(in any) (any, error) {
 		if query == nil {
-			q, err := gojq.Parse(expression)
+			q, err := parseQuery(expression)
 			if err != nil {
-				return nil, fmt.Errorf("unable to parse expression %s, %w", expression, err)
+				return nil, err
 			}
 
 			query = q
@@ -32,4 +32,9 @@ func Extract(expression string) func(in any) (any, error) {
 
 		return Run(query, data)
 	}
+}
+
+// Extractf returns a transform function from a formatted JQ expression.
+func Extractf(expressionFormat string, args ...any) func(in any) (any, error) {
+	return Extract(fmt.Sprintf(expressionFormat, args...))
 }

@@ -10,21 +10,24 @@ import (
 )
 
 // Match creates a Gomega matcher that evaluates a JQ expression against the actual value.
-// The expression should return a boolean result. Supports format string with args for dynamic expressions.
+// The expression should return a boolean result.
 //
 // Example:
 //
 //	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
-//	Expect(data).Should(jq.Match(`.status.phase == "%s"`, "Running"))
-func Match(f string, args ...any) types.GomegaMatcher {
-	expression := f
-	if len(args) > 0 {
-		expression = fmt.Sprintf(f, args...)
-	}
-
+func Match(expression string) types.GomegaMatcher {
 	return &jqMatcher{
 		Expression: expression,
 	}
+}
+
+// Matchf creates a Gomega matcher from a formatted JQ expression.
+//
+// Example:
+//
+//	Expect(data).Should(jq.Matchf(`.status.phase == "%s"`, "Running"))
+func Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
+	return Match(fmt.Sprintf(expressionFormat, args...))
 }
 
 var _ types.GomegaMatcher = &jqMatcher{}
@@ -36,9 +39,9 @@ type jqMatcher struct {
 
 func (matcher *jqMatcher) Match(actual any) (bool, error) {
 	if matcher.query == nil {
-		q, err := gojq.Parse(matcher.Expression)
+		q, err := parseQuery(matcher.Expression)
 		if err != nil {
-			return false, fmt.Errorf("unable to parse expression %s, %w", matcher.Expression, err)
+			return false, err
 		}
 
 		matcher.query = q
@@ -49,14 +52,8 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return false, err
 	}
 
-	it := matcher.query.Run(data)
-
-	v, ok := it.Next()
-	if !ok {
-		return false, nil
-	}
-
-	if err, ok := v.(error); ok {
+	v, err := Run(matcher.query, data)
+	if err != nil {
 		return false, gomega.StopTrying(err.Error())
 	}
 

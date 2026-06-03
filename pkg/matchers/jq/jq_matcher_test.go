@@ -46,6 +46,20 @@ func TestMatcher(t *testing.T) {
 			jq.Match(`.status.foo.baz == "fb"`),
 		),
 	)
+
+	g.Expect(`{"value":"100%"}`).Should(
+		jq.Match(`.value == "100%"`),
+	)
+}
+
+func TestMatcherFormattedExpression(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(`{"status":{"phase":"Running"}}`).Should(
+		jq.Matchf(`.status.phase == "%s"`, "Running"),
+	)
 }
 
 func TestMatcherWithType(t *testing.T) {
