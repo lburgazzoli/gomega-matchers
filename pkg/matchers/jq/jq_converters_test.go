@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/onsi/gomega/gbytes"
@@ -68,30 +67,6 @@ func TestGBytesBufferConverter(t *testing.T) {
 
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
-}
-
-func TestReaderConverter(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	reader := strings.NewReader(`{"foo":"bar"}`)
-	result, err := jq.ReaderConverter(reader)
-
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
-}
-
-func TestConvertReaderUnsupportedByDefault(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-	resetConvertersForTest(t)
-
-	_, err := jq.Convert(strings.NewReader(`{"foo":"bar"}`))
-
-	g.Expect(err).Should(HaveOccurred())
-	g.Expect(err.Error()).Should(ContainSubstring("unsupported type"))
 }
 
 func TestMapConverter(t *testing.T) {
@@ -495,17 +470,6 @@ func TestResetConvertersRestoresBuiltins(t *testing.T) {
 	jq.ResetConverters()
 
 	result, err = jq.Convert(`{"foo":"bar"}`)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
-}
-
-func TestRegisterReaderConverterExplicitly(t *testing.T) {
-	g := NewWithT(t)
-	resetConvertersForTest(t)
-
-	jq.RegisterConverter(jq.ReaderConverter)
-
-	result, err := jq.Convert(strings.NewReader(`{"foo":"bar"}`))
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
 }
