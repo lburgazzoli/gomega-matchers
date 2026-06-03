@@ -369,7 +369,7 @@ func TestConvertUnsupportedType(t *testing.T) {
 			_, err := jq.Convert(tt.input)
 
 			g.Expect(err).Should(HaveOccurred())
-			g.Expect(err.Error()).Should(ContainSubstring("unsuported type"))
+			g.Expect(err.Error()).Should(ContainSubstring("unsupported type"))
 		})
 	}
 }

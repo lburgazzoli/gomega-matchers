@@ -21,7 +21,7 @@ func Extract(expression string) func(in any) (any, error) {
 
 		data, err := Convert(in)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
 		return Run(query, data)
