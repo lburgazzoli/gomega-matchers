@@ -54,15 +54,26 @@ func (m *UnstructuredResources) Get(
 	}
 }
 
-// Gone returns a function that reports whether a Kubernetes resource is absent.
-// The returned function is compatible with Gomega's Eventually() and is intended
-// to be asserted with BeTrue().
-func (m *UnstructuredResources) Gone(
+// Absent returns a function that reports whether a Kubernetes resource is absent.
+// Returns true when the resource is not found OR the resource type has no REST mapping.
+// Returns StopTrying for unexpected errors.
+func (m *UnstructuredResources) Absent(
 	gvk schema.GroupVersionKind,
 	key ObjectKey,
 	opts ...client.GetOption,
 ) func(context.Context) (bool, error) {
-	return gone(m.Get(gvk, key, opts...))
+	return absent(m.Get(gvk, key, opts...))
+}
+
+// NotFound returns a function that reports whether a Kubernetes resource is not found.
+// Returns true only when the specific object is not found (HTTP 404).
+// Returns StopTrying if the resource type has no REST mapping or for other unexpected errors.
+func (m *UnstructuredResources) NotFound(
+	gvk schema.GroupVersionKind,
+	key ObjectKey,
+	opts ...client.GetOption,
+) func(context.Context) (bool, error) {
+	return notFound(m.Get(gvk, key, opts...))
 }
 
 // List returns a function that retrieves a list of Kubernetes resources by GVK.

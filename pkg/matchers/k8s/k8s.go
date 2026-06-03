@@ -35,7 +35,7 @@ func (k ObjectKey) ToNamespacedName() types.NamespacedName {
 	return types.NamespacedName(k)
 }
 
-func gone[T any](get func(context.Context) (T, error)) func(context.Context) (bool, error) {
+func absent[T any](get func(context.Context) (T, error)) func(context.Context) (bool, error) {
 	return func(ctx context.Context) (bool, error) {
 		_, err := get(ctx)
 		if err == nil {
@@ -46,6 +46,21 @@ func gone[T any](get func(context.Context) (T, error)) func(context.Context) (bo
 			return true, nil
 		}
 
-		return false, gomega.StopTrying("failed to determine whether resource is gone").Wrap(err)
+		return false, gomega.StopTrying("failed to determine whether resource is absent").Wrap(err)
+	}
+}
+
+func notFound[T any](get func(context.Context) (T, error)) func(context.Context) (bool, error) {
+	return func(ctx context.Context) (bool, error) {
+		_, err := get(ctx)
+		if err == nil {
+			return false, nil
+		}
+
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+
+		return false, gomega.StopTrying("failed to determine whether resource is not found").Wrap(err)
 	}
 }

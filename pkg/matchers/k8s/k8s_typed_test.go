@@ -95,7 +95,7 @@ func TestTypedGetWithJQMatcher(t *testing.T) {
 	})).WithContext(t.Context()).Should(jq.Match(`.metadata.labels.env == "prod"`))
 }
 
-func TestTypedGone(t *testing.T) {
+func TestTypedAbsent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -108,7 +108,7 @@ func TestTypedGone(t *testing.T) {
 
 	k := k8s.NewResources(c, scheme)
 
-	g.Eventually(k.Gone(&corev1.ConfigMap{
+	g.Eventually(k.Absent(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "missing-config",
 			Namespace: "default",
@@ -116,7 +116,7 @@ func TestTypedGone(t *testing.T) {
 	})).WithContext(t.Context()).Should(BeTrue())
 }
 
-func TestTypedGoneExisting(t *testing.T) {
+func TestTypedAbsentExisting(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -137,7 +137,7 @@ func TestTypedGoneExisting(t *testing.T) {
 
 	k := k8s.NewResources(c, scheme)
 
-	g.Eventually(k.Gone(&corev1.ConfigMap{
+	g.Eventually(k.Absent(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
