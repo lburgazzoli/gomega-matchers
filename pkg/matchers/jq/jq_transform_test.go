@@ -50,3 +50,11 @@ func TestExtractNoResultReturnsNil(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(value).Should(BeNil())
 }
+
+func TestExtractParseErrorStopsRetrying(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Extract(`[`)(`{"present":true}`)
+
+	assertStopTrying(t, err)
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/itchyny/gojq"
+	"github.com/onsi/gomega"
 )
 
 func parseQuery(expression string) (*gojq.Query, error) {
@@ -13,6 +14,10 @@ func parseQuery(expression string) (*gojq.Query, error) {
 	}
 
 	return query, nil
+}
+
+func terminalJQError(err error) error {
+	return gomega.StopTrying("jq expression cannot be evaluated").Wrap(err)
 }
 
 // Run executes a compiled JQ query against the provided data and returns the first result.

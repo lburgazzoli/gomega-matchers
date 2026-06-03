@@ -2,12 +2,31 @@ package jq_test
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 
 	. "github.com/onsi/gomega"
 )
+
+type stopTryingError interface {
+	error
+	IsStopTrying() bool
+}
+
+func assertStopTrying(t *testing.T, err error) {
+	t.Helper()
+
+	var stopErr stopTryingError
+	if !errors.As(err, &stopErr) {
+		t.Fatalf("expected StopTrying error, got %T: %v", err, err)
+	}
+
+	if !stopErr.IsStopTrying() {
+		t.Fatalf("expected StopTrying error, got %T: %v", err, err)
+	}
+}
 
 func TestMatcher(t *testing.T) {
 	t.Parallel()
@@ -60,6 +79,15 @@ func TestMatcherFormattedExpression(t *testing.T) {
 	g.Expect(`{"status":{"phase":"Running"}}`).Should(
 		jq.Matchf(`.status.phase == "%s"`, "Running"),
 	)
+}
+
+func TestMatcherParseErrorStopsRetrying(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Match(`[`).
+		Match(`{"status":{"phase":"Running"}}`)
+
+	assertStopTrying(t, err)
 }
 
 func TestMatcherWithType(t *testing.T) {
