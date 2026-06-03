@@ -39,7 +39,7 @@ func TestTypedGet(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Get(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -78,7 +78,7 @@ func TestTypedGetWithJQMatcher(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Get(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,7 +106,7 @@ func TestTypedGone(t *testing.T) {
 		WithScheme(scheme).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Gone(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -135,7 +135,7 @@ func TestTypedGoneExisting(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Gone(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -178,7 +178,7 @@ func TestTypedList(t *testing.T) {
 		WithObjects(cm1, cm2, cm3).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.List(&corev1.ConfigMapList{}, client.InNamespace("default"))).
 		WithContext(t.Context()).
@@ -217,7 +217,7 @@ func TestTypedListWithJQMatcher(t *testing.T) {
 		WithObjects(cm1, cm2).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.List(&corev1.ConfigMapList{}, client.InNamespace("default"))).
 		WithContext(t.Context()).
@@ -243,7 +243,7 @@ func TestTypedDelete(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Delete(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -279,7 +279,7 @@ func TestTypedUpdate(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Update(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -319,7 +319,7 @@ func TestTypedUpdateWithJQMatcher(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Update(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -52,7 +52,7 @@ func ForObject(ref corev1.ObjectReference) EventOption {
 
 // Events lists typed Kubernetes events and returns them as a plain slice so
 // callers can use standard Gomega collection matchers directly.
-func (m *Matcher) Events(opts ...EventOption) func(context.Context) ([]corev1.Event, error) {
+func (m *Resources) Events(opts ...EventOption) func(context.Context) ([]corev1.Event, error) {
 	return func(ctx context.Context) ([]corev1.Event, error) {
 		resolved := resolveEventOptions(opts...)
 		events := &corev1.EventList{}
@@ -67,7 +67,7 @@ func (m *Matcher) Events(opts ...EventOption) func(context.Context) ([]corev1.Ev
 
 // HasEvent reports whether the listed events contain at least one element that
 // matches the provided Gomega matcher.
-func (m *Matcher) HasEvent(
+func (m *Resources) HasEvent(
 	eventMatcher types.GomegaMatcher,
 	opts ...EventOption,
 ) func(context.Context) (bool, error) {

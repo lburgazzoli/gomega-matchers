@@ -12,18 +12,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Matcher wraps a Kubernetes client.Client and provides typed helper functions
+// Resources wraps a Kubernetes client.Client and provides typed helper functions
 // that work with typed Kubernetes objects (e.g., *corev1.ConfigMap) and return
 // unstructured results compatible with Gomega assertions and JQ matchers.
-type Matcher struct {
+type Resources struct {
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// New creates a new typed Matcher wrapping the provided client.Client.
+// NewResources creates a new typed Resources wrapping the provided client.Client.
 // The scheme is used to extract GVK information from typed objects.
-func New(cli client.Client, scheme *runtime.Scheme) *Matcher {
-	return &Matcher{
+func NewResources(cli client.Client, scheme *runtime.Scheme) *Resources {
+	return &Resources{
 		client: cli,
 		scheme: scheme,
 	}
@@ -42,7 +42,7 @@ func New(cli client.Client, scheme *runtime.Scheme) *Matcher {
 //			Namespace: "default",
 //		},
 //	})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
-func (m *Matcher) Get(
+func (m *Resources) Get(
 	obj client.Object,
 	opts ...client.GetOption,
 ) func(context.Context) (*unstructured.Unstructured, error) {
@@ -67,7 +67,7 @@ func (m *Matcher) Get(
 // Gone returns a function that reports whether a typed Kubernetes resource is absent.
 // The returned function is compatible with Gomega's Eventually() and is intended
 // to be asserted with BeTrue().
-func (m *Matcher) Gone(
+func (m *Resources) Gone(
 	obj client.Object,
 	opts ...client.GetOption,
 ) func(context.Context) (bool, error) {
@@ -85,7 +85,7 @@ func (m *Matcher) Gone(
 //		client.InNamespace("default"),
 //		client.MatchingLabels{"app": "myapp"},
 //	)).WithContext(ctx).Should(jq.Match(`.items | length > 0`))
-func (m *Matcher) List(
+func (m *Resources) List(
 	list client.ObjectList,
 	opts ...client.ListOption,
 ) func(context.Context) (*unstructured.UnstructuredList, error) {
@@ -124,7 +124,7 @@ func (m *Matcher) List(
 //			Namespace: "default",
 //		},
 //	})).WithContext(ctx).Should(Succeed())
-func (m *Matcher) Delete(
+func (m *Resources) Delete(
 	obj client.Object,
 	opts ...client.DeleteOption,
 ) func(context.Context) error {
@@ -159,7 +159,7 @@ func (m *Matcher) Delete(
 //		cm := obj.(*corev1.ConfigMap)
 //		cm.Data["key"] = "new-value"
 //	})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
-func (m *Matcher) Update(
+func (m *Resources) Update(
 	obj client.Object,
 	updateFunc func(client.Object),
 	opts ...client.UpdateOption,
@@ -169,7 +169,7 @@ func (m *Matcher) Update(
 	}
 }
 
-func (m *Matcher) doUpdate(
+func (m *Resources) doUpdate(
 	ctx context.Context,
 	obj client.Object,
 	updateFunc func(client.Object),
@@ -209,7 +209,7 @@ func (m *Matcher) doUpdate(
 }
 
 // extractGVKAndKey extracts GroupVersionKind and ObjectKey from a typed Kubernetes object.
-func (m *Matcher) extractGVKAndKey(obj client.Object) (schema.GroupVersionKind, ObjectKey, error) {
+func (m *Resources) extractGVKAndKey(obj client.Object) (schema.GroupVersionKind, ObjectKey, error) {
 	gvks, _, err := m.scheme.ObjectKinds(obj)
 	if err != nil {
 		return schema.GroupVersionKind{}, ObjectKey{}, fmt.Errorf("failed to get GVK from object: %w", err)

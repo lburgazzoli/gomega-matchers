@@ -14,7 +14,7 @@
 //		"sigs.k8s.io/controller-runtime/pkg/client"
 //	)
 //
-//	k := k8s.NewUnstructured(client)
+//	k := k8s.NewUnstructuredResources(client)
 //	podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 //
 //	// Wait for pod to be ready
@@ -33,7 +33,7 @@
 //		Should(jq.Match(`. | length > 0`))
 //
 //	// Wait for an event for a specific object
-//	typed := k8s.New(client, scheme)
+//	typed := k8s.NewResources(client, scheme)
 //	Eventually(typed.Events(
 //		k8s.InNamespace("default"),
 //		k8s.ForObject(corev1.ObjectReference{

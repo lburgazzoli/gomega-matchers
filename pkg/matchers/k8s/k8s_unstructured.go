@@ -9,15 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// UnstructuredMatcher wraps a Kubernetes client.Client and provides GVK-based
+// UnstructuredResources wraps a Kubernetes client.Client and provides GVK-based
 // helper functions that return matcher-compatible functions for use with Gomega assertions.
-type UnstructuredMatcher struct {
+type UnstructuredResources struct {
 	client client.Client
 }
 
-// NewUnstructured creates a new UnstructuredMatcher wrapping the provided client.Client.
-func NewUnstructured(cli client.Client) *UnstructuredMatcher {
-	return &UnstructuredMatcher{
+// NewUnstructuredResources creates a new UnstructuredResources wrapping the provided client.Client.
+func NewUnstructuredResources(cli client.Client) *UnstructuredResources {
+	return &UnstructuredResources{
 		client: cli,
 	}
 }
@@ -36,7 +36,7 @@ func NewUnstructured(cli client.Client) *UnstructuredMatcher {
 //	Eventually(k.Get(podGVK, Named("my-pod").InNamespace("default"))).
 //		WithContext(ctx).
 //		Should(jq.Match(".status.phase == \"Running\""))
-func (m *UnstructuredMatcher) Get(
+func (m *UnstructuredResources) Get(
 	gvk schema.GroupVersionKind,
 	key ObjectKey,
 	opts ...client.GetOption,
@@ -57,7 +57,7 @@ func (m *UnstructuredMatcher) Get(
 // Gone returns a function that reports whether a Kubernetes resource is absent.
 // The returned function is compatible with Gomega's Eventually() and is intended
 // to be asserted with BeTrue().
-func (m *UnstructuredMatcher) Gone(
+func (m *UnstructuredResources) Gone(
 	gvk schema.GroupVersionKind,
 	key ObjectKey,
 	opts ...client.GetOption,
@@ -77,7 +77,7 @@ func (m *UnstructuredMatcher) Gone(
 //	Eventually(k.List(podGVK, client.InNamespace("default"))).
 //		WithContext(ctx).
 //		Should(jq.Match(".items | length > 0"))
-func (m *UnstructuredMatcher) List(
+func (m *UnstructuredResources) List(
 	gvk schema.GroupVersionKind,
 	opts ...client.ListOption,
 ) func(context.Context) (*unstructured.UnstructuredList, error) {
@@ -108,7 +108,7 @@ func (m *UnstructuredMatcher) List(
 //
 //	podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 //	Expect(k.Delete(podGVK, Named("my-pod").InNamespace("default"))(ctx)).To(Succeed())
-func (m *UnstructuredMatcher) Delete(
+func (m *UnstructuredResources) Delete(
 	gvk schema.GroupVersionKind,
 	key ObjectKey,
 	opts ...client.DeleteOption,

@@ -76,7 +76,7 @@ func TestTypedEvents(t *testing.T) {
 		WithObjects(firstEvent, secondEvent, otherNamespaceEvent).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Events(k8s.InNamespace("default"))).
 		WithContext(t.Context()).
@@ -117,7 +117,7 @@ func TestTypedEventsWithMatchingLabels(t *testing.T) {
 		WithObjects(firstEvent, secondEvent).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Events(
 		k8s.InNamespace("default"),
@@ -167,7 +167,7 @@ func TestTypedEventsForObject(t *testing.T) {
 		WithObjects(firstEvent, secondEvent).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Events(
 		k8s.InNamespace("default"),
@@ -208,7 +208,7 @@ func TestTypedHasEvent(t *testing.T) {
 		WithObjects(event).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.HasEvent(
 		gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
@@ -250,7 +250,7 @@ func TestTypedHasEventNotFound(t *testing.T) {
 		WithObjects(event).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.HasEvent(
 		gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
@@ -284,7 +284,7 @@ func TestTypedEventsListError(t *testing.T) {
 		},
 	)
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	_, err := k.Events()(t.Context())
 	g.Expect(err).To(MatchError(expectedErr))
