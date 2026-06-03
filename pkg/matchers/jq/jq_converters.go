@@ -56,7 +56,7 @@ func Convert(in any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("unsuported type:\n%s", format.Object(in, 1))
+	return nil, fmt.Errorf("unsupported type:\n%s", format.Object(in, 1))
 }
 
 // UnmarshalJSON unmarshals JSON bytes into a JQ-compatible type (map or slice).
@@ -194,6 +194,10 @@ func UnstructuredListPtrConverter(in any) (any, error) {
 
 // MapConverter converts map types to JQ-compatible type (pass-through).
 func MapConverter(in any) (any, error) {
+	if in == nil {
+		return nil, ErrTypeNotSupported
+	}
+
 	if reflect.TypeOf(in).Kind() != reflect.Map {
 		return nil, ErrTypeNotSupported
 	}
@@ -203,11 +207,14 @@ func MapConverter(in any) (any, error) {
 
 // SliceConverter converts slice types to JQ-compatible type (pass-through).
 func SliceConverter(in any) (any, error) {
+	if in == nil {
+		return nil, ErrTypeNotSupported
+	}
+
 	if reflect.TypeOf(in).Kind() != reflect.Slice {
 		return nil, ErrTypeNotSupported
 	}
 
-	// Exclude []byte which is handled by ByteSliceConverter
 	if _, ok := in.([]byte); ok {
 		return nil, ErrTypeNotSupported
 	}

@@ -17,8 +17,13 @@ import (
 //	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
 //	Expect(data).Should(jq.Match(`.status.phase == "%s"`, "Running"))
 func Match(f string, args ...any) types.GomegaMatcher {
+	expression := f
+	if len(args) > 0 {
+		expression = fmt.Sprintf(f, args...)
+	}
+
 	return &jqMatcher{
-		Expression: fmt.Sprintf(f, args...),
+		Expression: expression,
 	}
 }
 
@@ -55,7 +60,7 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return match, nil
 	}
 
-	return false, nil
+	return false, fmt.Errorf("jq expression %q returned %T, expected bool", matcher.Expression, v)
 }
 
 func (matcher *jqMatcher) FailureMessage(actual any) string {
