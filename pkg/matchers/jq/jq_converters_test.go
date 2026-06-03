@@ -15,6 +15,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func resetConvertersForTest(t *testing.T) {
+	t.Helper()
+
+	jq.ResetConverters()
+	t.Cleanup(jq.ResetConverters)
+}
+
 func TestStringConverter(t *testing.T) {
 	t.Parallel()
 
@@ -351,9 +358,8 @@ func TestConvertInvalidJSON(t *testing.T) {
 }
 
 func TestConvertErrorPropagation(t *testing.T) {
-	t.Parallel()
-
 	g := NewWithT(t)
+	resetConvertersForTest(t)
 
 	type ErrorType struct {
 		Value string
@@ -377,9 +383,8 @@ func TestConvertErrorPropagation(t *testing.T) {
 }
 
 func TestCustomConverterRegistration(t *testing.T) {
-	t.Parallel()
-
 	g := NewWithT(t)
+	resetConvertersForTest(t)
 
 	type CustomType struct {
 		Value string
@@ -400,9 +405,8 @@ func TestCustomConverterRegistration(t *testing.T) {
 }
 
 func TestCustomConverterPrecedence(t *testing.T) {
-	t.Parallel()
-
 	g := NewWithT(t)
+	resetConvertersForTest(t)
 
 	type CustomString string
 
@@ -427,9 +431,8 @@ func TestCustomConverterPrecedence(t *testing.T) {
 }
 
 func TestCustomStructConverter(t *testing.T) {
-	t.Parallel()
-
 	g := NewWithT(t)
+	resetConvertersForTest(t)
 
 	type Person struct {
 		Name string `json:"name"`
@@ -458,6 +461,30 @@ func TestCustomStructConverter(t *testing.T) {
 	g.Expect(Person{Name: "Alice", Age: 30}).Should(
 		jq.Match(`.name == "Alice" and .age == 30`),
 	)
+}
+
+func TestResetConvertersRestoresBuiltins(t *testing.T) {
+	g := NewWithT(t)
+	resetConvertersForTest(t)
+
+	jq.RegisterConverter(func(v any) (any, error) {
+		s, ok := v.(string)
+		if !ok {
+			return nil, jq.ErrTypeNotSupported
+		}
+
+		return map[string]any{"custom": s}, nil
+	})
+
+	result, err := jq.Convert(`{"foo":"bar"}`)
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"custom": `{"foo":"bar"}`}))
+
+	jq.ResetConverters()
+
+	result, err = jq.Convert(`{"foo":"bar"}`)
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
 }
 
 func TestConvertNormalizesInt64InMap(t *testing.T) {
