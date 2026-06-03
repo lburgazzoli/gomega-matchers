@@ -21,6 +21,10 @@ var ErrTypeNotSupported = errors.New("type not supported by this converter")
 // Returns ErrTypeNotSupported if the input type is not handled by this converter.
 type ConverterFunc func(any) (any, error)
 
+// The converter registry is intentionally global so tests can register a
+// converter once and then use Match/Extract naturally without threading a
+// configured jq instance through every assertion site.
+//
 //nolint:gochecknoglobals
 var (
 	convertersMu sync.RWMutex
