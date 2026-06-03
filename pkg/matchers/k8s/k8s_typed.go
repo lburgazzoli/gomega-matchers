@@ -64,14 +64,24 @@ func (m *Resources) Get(
 	}
 }
 
-// Gone returns a function that reports whether a typed Kubernetes resource is absent.
-// The returned function is compatible with Gomega's Eventually() and is intended
-// to be asserted with BeTrue().
-func (m *Resources) Gone(
+// Absent returns a function that reports whether a typed Kubernetes resource is absent.
+// Returns true when the resource is not found OR the resource type has no REST mapping.
+// Returns StopTrying for unexpected errors.
+func (m *Resources) Absent(
 	obj client.Object,
 	opts ...client.GetOption,
 ) func(context.Context) (bool, error) {
-	return gone(m.Get(obj, opts...))
+	return absent(m.Get(obj, opts...))
+}
+
+// NotFound returns a function that reports whether a typed Kubernetes resource is not found.
+// Returns true only when the specific object is not found (HTTP 404).
+// Returns StopTrying if the resource type has no REST mapping or for other unexpected errors.
+func (m *Resources) NotFound(
+	obj client.Object,
+	opts ...client.GetOption,
+) func(context.Context) (bool, error) {
+	return notFound(m.Get(obj, opts...))
 }
 
 // List retrieves a list of Kubernetes resources using a typed list object.

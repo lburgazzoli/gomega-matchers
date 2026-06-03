@@ -22,8 +22,8 @@
 //		WithContext(ctx).
 //		Should(jq.Match(`.status.phase == "Running"`))
 //
-//	// Wait for pod to be deleted
-//	Eventually(k.Gone(podGVK, k8s.Named("my-pod").InNamespace("default"))).
+//	// Wait for pod to be deleted (Absent tolerates missing CRD; NotFound requires the type to exist)
+//	Eventually(k.Absent(podGVK, k8s.Named("my-pod").InNamespace("default"))).
 //		WithContext(ctx).
 //		Should(BeTrue())
 //

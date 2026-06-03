@@ -102,7 +102,7 @@ func TestGetNotFound(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestGone(t *testing.T) {
+func TestAbsent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -115,12 +115,12 @@ func TestGone(t *testing.T) {
 
 	k := k8s.NewUnstructuredResources(c)
 
-	g.Eventually(k.Gone(podGVK, k8s.Named("nonexistent").InNamespace("default"))).
+	g.Eventually(k.Absent(podGVK, k8s.Named("nonexistent").InNamespace("default"))).
 		WithContext(t.Context()).
 		Should(BeTrue())
 }
 
-func TestGoneExisting(t *testing.T) {
+func TestAbsentExisting(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -141,7 +141,7 @@ func TestGoneExisting(t *testing.T) {
 
 	k := k8s.NewUnstructuredResources(c)
 
-	g.Eventually(k.Gone(podGVK, k8s.Named("test-pod").InNamespace("default"))).
+	g.Eventually(k.Absent(podGVK, k8s.Named("test-pod").InNamespace("default"))).
 		WithContext(t.Context()).
 		Should(BeFalse())
 }
