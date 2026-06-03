@@ -12,8 +12,6 @@ import (
 
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/gbytes"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // ErrTypeNotSupported is returned by converters when the input type is not supported.
@@ -105,9 +103,6 @@ func registerBuiltinConverters() {
 	RegisterConverter(RawMessageConverter)
 	RegisterConverter(GBytesBufferConverter)
 	RegisterConverter(ReaderConverter)
-	RegisterConverter(UnstructuredConverter)
-	RegisterConverter(UnstructuredPtrConverter)
-	RegisterConverter(UnstructuredListPtrConverter)
 	RegisterConverter(MapConverter)
 	RegisterConverter(SliceConverter)
 }
@@ -165,41 +160,6 @@ func ReaderConverter(in any) (any, error) {
 	}
 
 	return UnmarshalJSON(data)
-}
-
-// UnstructuredConverter converts unstructured.Unstructured to JQ-compatible type.
-func UnstructuredConverter(in any) (any, error) {
-	v, ok := in.(unstructured.Unstructured)
-	if !ok {
-		return nil, ErrTypeNotSupported
-	}
-
-	return v.Object, nil
-}
-
-// UnstructuredPtrConverter converts *unstructured.Unstructured to JQ-compatible type.
-func UnstructuredPtrConverter(in any) (any, error) {
-	v, ok := in.(*unstructured.Unstructured)
-	if !ok {
-		return nil, ErrTypeNotSupported
-	}
-
-	return v.Object, nil
-}
-
-// UnstructuredListPtrConverter converts *unstructured.UnstructuredList to JQ-compatible type.
-func UnstructuredListPtrConverter(in any) (any, error) {
-	v, ok := in.(*unstructured.UnstructuredList)
-	if !ok {
-		return nil, ErrTypeNotSupported
-	}
-
-	items := make([]any, len(v.Items))
-	for i, item := range v.Items {
-		items[i] = item.Object
-	}
-
-	return items, nil
 }
 
 // MapConverter converts map types to JQ-compatible type (pass-through).
