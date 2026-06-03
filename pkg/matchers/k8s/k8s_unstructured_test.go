@@ -360,6 +360,71 @@ func TestDelete(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key": "old-value",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cm).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k.Update(configMapGVK, k8s.Named("test-config").InNamespace("default"),
+		func(obj *unstructured.Unstructured) {
+			data := obj.Object["data"].(map[string]any) //nolint:forcetypeassert
+			data["key"] = "new-value"
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "new-value"`))
+}
+
+func TestUpdateWithJQMatcher(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "test",
+			},
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cm).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k.Update(configMapGVK, k8s.Named("test-config").InNamespace("default"),
+		func(obj *unstructured.Unstructured) {
+			labels := obj.GetLabels()
+			labels["updated"] = "true"
+			obj.SetLabels(labels)
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.metadata.labels.updated == "true"`))
+}
+
 func TestDeleteClusterScoped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

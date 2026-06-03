@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -102,6 +103,53 @@ func (m *UnstructuredResources) List(
 		}
 
 		return list, nil
+	}
+}
+
+// Update retrieves a Kubernetes resource, applies an update function, and updates it.
+// Returns a function that can be used with Gomega's Eventually for async assertions.
+//
+// Example:
+//
+//	podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
+//	Eventually(k.Update(podGVK, Named("my-pod").InNamespace("default"),
+//		func(obj *unstructured.Unstructured) {
+//			labels := obj.GetLabels()
+//			labels["updated"] = "true"
+//			obj.SetLabels(labels)
+//		},
+//	)).WithContext(ctx).Should(jq.Match(`.metadata.labels.updated == "true"`))
+func (m *UnstructuredResources) Update(
+	gvk schema.GroupVersionKind,
+	key ObjectKey,
+	updateFunc func(*unstructured.Unstructured),
+	opts ...client.UpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(gvk)
+
+		err := m.client.Get(ctx, key.ToNamespacedName(), obj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get resource for update: %w", err)
+		}
+
+		updateFunc(obj)
+
+		err = m.client.Update(ctx, obj, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update resource: %w", err)
+		}
+
+		result := &unstructured.Unstructured{}
+		result.SetGroupVersionKind(gvk)
+
+		err = m.client.Get(ctx, key.ToNamespacedName(), result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get updated resource: %w", err)
+		}
+
+		return result, nil
 	}
 }
 
