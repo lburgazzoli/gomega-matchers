@@ -97,7 +97,7 @@ func TestObjectMatchersWorkWithEventuallyGet(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.New(c, scheme)
+	k := k8s.NewResources(c, scheme)
 
 	g.Eventually(k.Get(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -40,7 +40,7 @@ func TestGet(t *testing.T) {
 		WithObjects(pod).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	obj, err := k.Get(podGVK, k8s.Named("test-pod").InNamespace("default"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -74,7 +74,7 @@ func TestGetWithJQMatcher(t *testing.T) {
 		WithObjects(pod).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	g.Eventually(k.Get(podGVK, k8s.Named(pod.Name).InNamespace(pod.Namespace))).
 		WithContext(t.Context()).
@@ -96,7 +96,7 @@ func TestGetNotFound(t *testing.T) {
 		WithScheme(scheme).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	_, err := k.Get(podGVK, k8s.Named("nonexistent").InNamespace("default"))(t.Context())
 	g.Expect(err).To(HaveOccurred())
@@ -113,7 +113,7 @@ func TestGone(t *testing.T) {
 		WithScheme(scheme).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	g.Eventually(k.Gone(podGVK, k8s.Named("nonexistent").InNamespace("default"))).
 		WithContext(t.Context()).
@@ -139,7 +139,7 @@ func TestGoneExisting(t *testing.T) {
 		WithObjects(pod).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	g.Eventually(k.Gone(podGVK, k8s.Named("test-pod").InNamespace("default"))).
 		WithContext(t.Context()).
@@ -164,7 +164,7 @@ func TestGetClusterScoped(t *testing.T) {
 		WithObjects(ns).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	obj, err := k.Get(namespaceGVK, k8s.Named("test-namespace"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -191,7 +191,7 @@ func TestGetWithNamespacedNamed(t *testing.T) {
 		WithObjects(pod).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	obj, err := k.Get(podGVK, k8s.NamespacedNamed("default", "test-pod"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -241,7 +241,7 @@ func TestList(t *testing.T) {
 		WithObjects(pod1, pod2, pod3).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	list, err := k.List(podGVK, client.InNamespace("default"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -275,7 +275,7 @@ func TestListWithJQMatcher(t *testing.T) {
 		WithObjects(pod1, pod2).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	g.Eventually(k.List(podGVK, client.InNamespace("default"))).
 		WithContext(t.Context()).
@@ -318,7 +318,7 @@ func TestListWithLabelSelector(t *testing.T) {
 		WithObjects(pod1, pod2).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	list, err := k.List(
 		podGVK,
@@ -349,7 +349,7 @@ func TestDelete(t *testing.T) {
 		WithObjects(pod).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	err := k.Delete(podGVK, k8s.Named("test-pod").InNamespace("default"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -378,7 +378,7 @@ func TestDeleteClusterScoped(t *testing.T) {
 		WithObjects(ns).
 		Build()
 
-	k := k8s.NewUnstructured(c)
+	k := k8s.NewUnstructuredResources(c)
 
 	err := k.Delete(namespaceGVK, k8s.Named("test-namespace"))(t.Context())
 	g.Expect(err).ToNot(HaveOccurred())
