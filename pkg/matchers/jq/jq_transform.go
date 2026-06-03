@@ -30,7 +30,7 @@ func Extract(expression string) func(in any) (any, error) {
 			return nil, err
 		}
 
-		return Run(query, data)
+		return runFirstResult(query, data, nil)
 	}
 }
 

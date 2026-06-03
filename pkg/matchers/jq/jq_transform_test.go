@@ -39,3 +39,14 @@ func TestExtractFormattedExpression(t *testing.T) {
 		WithTransform(jq.Extractf(`.status.%s`, "phase"), Equal("Running")),
 	)
 }
+
+func TestExtractNoResultReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	value, err := jq.Extract(`.missing`)(`{"present":true}`)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(value).Should(BeNil())
+}
