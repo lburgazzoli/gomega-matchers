@@ -10,6 +10,11 @@ var (
 		Kind:    "Pod",
 	}
 
+	configMapGVK = schema.GroupVersionKind{
+		Version: "v1",
+		Kind:    "ConfigMap",
+	}
+
 	namespaceGVK = schema.GroupVersionKind{
 		Version: "v1",
 		Kind:    "Namespace",
