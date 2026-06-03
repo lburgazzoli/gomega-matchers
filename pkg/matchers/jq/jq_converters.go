@@ -100,7 +100,6 @@ func builtinConverters() []ConverterFunc {
 	return []ConverterFunc{
 		SliceConverter,
 		MapConverter,
-		ReaderConverter,
 		GBytesBufferConverter,
 		RawMessageConverter,
 		ByteSliceConverter,
