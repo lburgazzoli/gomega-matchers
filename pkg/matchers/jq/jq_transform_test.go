@@ -29,3 +29,13 @@ func TestExtract(t *testing.T) {
 		),
 	)
 }
+
+func TestExtractFormattedExpression(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(`{"status":{"phase":"Running"}}`).Should(
+		WithTransform(jq.Extractf(`.status.%s`, "phase"), Equal("Running")),
+	)
+}
