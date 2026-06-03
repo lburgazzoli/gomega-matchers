@@ -39,6 +39,16 @@ func RegisterConverter(converter ConverterFunc) {
 	converters = append([]ConverterFunc{converter}, converters...)
 }
 
+// ResetConverters restores the converter registry to its initial state (built-in converters only).
+// Intended for use in tests via t.Cleanup() to prevent cross-test pollution.
+func ResetConverters() {
+	convertersMu.Lock()
+	defer convertersMu.Unlock()
+
+	converters = nil
+	registerBuiltinConverters()
+}
+
 // Convert converts an input value to a JQ-compatible type (map or slice).
 // It iterates through registered converters until one successfully converts the value.
 func Convert(in any) (any, error) {

@@ -13,10 +13,16 @@ import (
 //
 //	WithTransform(jq.Extract(`.status`), Equal("ready"))
 func Extract(expression string) func(in any) (any, error) {
+	var query *gojq.Query
+
 	return func(in any) (any, error) {
-		query, err := gojq.Parse(expression)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse expression %s, %w", expression, err)
+		if query == nil {
+			q, err := gojq.Parse(expression)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse expression %s, %w", expression, err)
+			}
+
+			query = q
 		}
 
 		data, err := Convert(in)
