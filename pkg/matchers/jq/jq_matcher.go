@@ -16,8 +16,12 @@ import (
 //
 //	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
 func Match(expression string) types.GomegaMatcher {
+	query, parseErr := parseQuery(expression)
+
 	return &jqMatcher{
 		Expression: expression,
+		query:      query,
+		parseErr:   parseErr,
 	}
 }
 
@@ -35,16 +39,12 @@ var _ types.GomegaMatcher = &jqMatcher{}
 type jqMatcher struct {
 	Expression string
 	query      *gojq.Query
+	parseErr   error
 }
 
 func (matcher *jqMatcher) Match(actual any) (bool, error) {
-	if matcher.query == nil {
-		q, err := parseQuery(matcher.Expression)
-		if err != nil {
-			return false, err
-		}
-
-		matcher.query = q
+	if matcher.parseErr != nil {
+		return false, terminalJQError(matcher.parseErr)
 	}
 
 	data, err := Convert(actual)

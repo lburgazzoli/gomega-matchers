@@ -1,10 +1,6 @@
 package jq
 
-import (
-	"fmt"
-
-	"github.com/itchyny/gojq"
-)
+import "fmt"
 
 // Extract returns a transform function that extracts a value from input using a JQ expression.
 // The returned function can be used with Gomega's WithTransform matcher combinator.
@@ -13,16 +9,11 @@ import (
 //
 //	WithTransform(jq.Extract(`.status`), Equal("ready"))
 func Extract(expression string) func(in any) (any, error) {
-	var query *gojq.Query
+	query, parseErr := parseQuery(expression)
 
 	return func(in any) (any, error) {
-		if query == nil {
-			q, err := parseQuery(expression)
-			if err != nil {
-				return nil, err
-			}
-
-			query = q
+		if parseErr != nil {
+			return nil, terminalJQError(parseErr)
 		}
 
 		data, err := Convert(in)
