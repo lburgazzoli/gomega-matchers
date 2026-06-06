@@ -26,6 +26,19 @@ func Run(query *gojq.Query, data any) (any, error) {
 	return runFirstResult(query, data, false)
 }
 
+func runRequiredResult(query *gojq.Query, data any, expression string) (any, error) {
+	result, err := runFirstResult(query, data, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil {
+		return nil, fmt.Errorf("jq transform %q produced no result", expression)
+	}
+
+	return result, nil
+}
+
 func runFirstResult(query *gojq.Query, data any, noResult any) (any, error) {
 	it := query.Run(data)
 

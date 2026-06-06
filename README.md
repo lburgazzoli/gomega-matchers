@@ -134,6 +134,24 @@ Expect(in).Should(
 )
 ```
 
+### Transforming
+
+```go
+// Transform data with a JQ expression and get the full result back
+result, err := jq.Transform(`. + {"new_field": "value"}`)(inputMap)
+
+// Use with WithTransform to transform then assert
+Expect(map[string]any{"status": "pending"}).Should(
+    WithTransform(jq.Transform(`.status = "done"`),
+        jq.Match(`.status == "done"`),
+    ),
+)
+
+// Formatted expressions
+transform := jq.Transformf(`.data.%s = "%s"`, "key", "new-value")
+result, err = transform(inputMap)
+```
+
 ### Combining Matchers
 
 ```go

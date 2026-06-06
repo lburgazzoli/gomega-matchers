@@ -88,6 +88,7 @@ The JQ matchers use [gojq](https://github.com/itchyny/gojq) to query and validat
 
 - **`jq.Match(expression)`** - evaluates a JQ expression that returns a boolean
 - **`jq.Extract(expression)`** - extracts data using JQ, designed for use with `WithTransform`
+- **`jq.Transform(expression)`** - applies a JQ transformation, returns the full modified result
 
 #### Type Conversion (`jq_support.go`)
 

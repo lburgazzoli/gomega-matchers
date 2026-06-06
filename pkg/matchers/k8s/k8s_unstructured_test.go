@@ -425,6 +425,49 @@ func TestUpdateWithJQMatcher(t *testing.T) {
 	)).WithContext(t.Context()).Should(jq.Match(`.metadata.labels.updated == "true"`))
 }
 
+func TestUpdateWithJQTransform(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "test",
+			},
+		},
+		Data: map[string]string{
+			"key": "old-value",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cm).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	transform := jq.Transform(`.data.key = "new-value" | .metadata.labels += {"updated": "true"}`)
+
+	g.Eventually(k.Update(configMapGVK, k8s.Named("test-config").InNamespace("default"),
+		func(obj *unstructured.Unstructured) {
+			result, err := transform(obj.Object)
+			g.Expect(err).ShouldNot(HaveOccurred())
+
+			obj.Object = result.(map[string]any) //nolint:forcetypeassert
+		},
+	)).WithContext(t.Context()).Should(And(
+		jq.Match(`.data.key == "new-value"`),
+		jq.Match(`.metadata.labels.updated == "true"`),
+		jq.Match(`.metadata.labels.app == "test"`),
+	))
+}
+
 func TestDeleteClusterScoped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -58,3 +58,70 @@ func TestExtractParseErrorStopsRetrying(t *testing.T) {
 
 	assertStopTrying(t, err)
 }
+
+func TestTransform(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := jq.Transform(`. + {"b": 2}`)(map[string]any{"a": 1})
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"a": 1, "b": 2}))
+}
+
+func TestTransformModifiesField(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := jq.Transform(`.status = "done"`)(map[string]any{"status": "pending"})
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"status": "done"}))
+}
+
+func TestTransformFormattedExpression(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := jq.Transformf(`.data.%s = "%s"`, "key", "new")(
+		map[string]any{"data": map[string]any{"key": "old"}},
+	)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(
+		WithTransform(json.Marshal, jq.Match(`.data.key == "new"`)),
+	)
+}
+
+func TestTransformNoResultReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := jq.Transform(`empty`)(`{"a":1}`)
+
+	g.Expect(err).Should(HaveOccurred())
+	g.Expect(err.Error()).Should(ContainSubstring("produced no result"))
+}
+
+func TestTransformParseErrorStopsRetrying(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Transform(`[`)(`{"a":1}`)
+
+	assertStopTrying(t, err)
+}
+
+func TestTransformWithStringInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := jq.Transform(`. + {"baz": "qux"}`)(`{"foo": "bar"}`)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"foo": "bar", "baz": "qux"}))
+}
