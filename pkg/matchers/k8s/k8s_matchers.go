@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/onsi/gomega"
@@ -60,19 +61,47 @@ func HasAnnotation(key string, value string) types.GomegaMatcher {
 	}, gomega.HaveKeyWithValue(key, value))
 }
 
-// HasOwnerReference matches a Kubernetes object containing the given owner reference.
-func HasOwnerReference(kind string, name string) types.GomegaMatcher {
+// HasOwnerReference matches a Kubernetes object containing an owner reference
+// matching the given owner's Kind and Name (and UID when set on the owner).
+func HasOwnerReference(owner client.Object) types.GomegaMatcher {
+	return ownerRefTransform(owner, ownerRefFields(owner))
+}
+
+// IsControlledBy matches a Kubernetes object that has a controller owner reference
+// (Controller: true) matching the given owner's Kind and Name (and UID when set).
+func IsControlledBy(owner client.Object) types.GomegaMatcher {
+	fields := ownerRefFields(owner)
+	fields["Controller"] = gomega.HaveValue(gomega.BeTrue())
+
+	return ownerRefTransform(owner, fields)
+}
+
+func ownerRefTransform(owner client.Object, fields gstruct.Fields) types.GomegaMatcher {
 	return gomega.WithTransform(func(actual any) ([]metav1.OwnerReference, error) {
+		if owner.GetObjectKind().GroupVersionKind().Kind == "" {
+			return nil, errors.New("owner has empty Kind; set TypeMeta on the owner object")
+		}
+
 		obj, err := asObject(actual)
 		if err != nil {
 			return nil, err
 		}
 
 		return obj.GetOwnerReferences(), nil
-	}, gomega.ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-		"Kind": gomega.Equal(kind),
-		"Name": gomega.Equal(name),
-	})))
+	}, gomega.ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, fields)))
+}
+
+func ownerRefFields(owner client.Object) gstruct.Fields {
+	fields := gstruct.Fields{
+		"Kind": gomega.Equal(owner.GetObjectKind().GroupVersionKind().Kind),
+		"Name": gomega.Equal(owner.GetName()),
+	}
+
+	if owner.GetUID() != "" {
+		fields["UID"] = gomega.Equal(owner.GetUID())
+	}
+
+	return fields
 }
 
 // MatchesGroupVersion matches a Kubernetes object by group and version.
