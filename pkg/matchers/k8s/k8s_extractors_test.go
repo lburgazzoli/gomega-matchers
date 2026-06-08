@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
@@ -71,6 +72,48 @@ func TestDataReturnsErrorForUnsupportedInput(t *testing.T) {
 	_, err := k8s.Data()(42)
 
 	g.Expect(err).To(MatchError("expected *corev1.ConfigMap, *corev1.Secret, or *unstructured.Unstructured, got int"))
+}
+
+func TestFinalizersExtractsTypedObjectFinalizers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Finalizers: []string{"example.com/finalizer"},
+		},
+	}
+
+	g.Expect(cm).To(WithTransform(k8s.Finalizers(), Equal([]string{"example.com/finalizer"})))
+}
+
+func TestFinalizersExtractsUnstructuredObjectFinalizers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": "test-config",
+				"finalizers": []any{
+					"example.com/finalizer",
+				},
+			},
+		},
+	}
+
+	g.Expect(obj).To(WithTransform(k8s.Finalizers(), Equal([]string{"example.com/finalizer"})))
+}
+
+func TestFinalizersReturnsErrorForUnsupportedInput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := k8s.Finalizers()(42)
+
+	g.Expect(err).To(MatchError("expected client.Object, got int"))
 }
 
 func TestListItemsExtractsTypedListItems(t *testing.T) {

@@ -34,6 +34,26 @@ func Data() func(any) (any, error) {
 	}
 }
 
+// Finalizers returns a transform function that extracts metadata.finalizers
+// from supported Kubernetes objects.
+//
+// Supported inputs include typed Kubernetes objects and
+// *unstructured.Unstructured values.
+//
+// Example:
+//
+//	WithTransform(k8s.Finalizers(), ContainElement("example.com/finalizer"))
+func Finalizers() func(any) (any, error) {
+	return func(in any) (any, error) {
+		obj, err := asObject(in)
+		if err != nil {
+			return nil, err
+		}
+
+		return obj.GetFinalizers(), nil
+	}
+}
+
 // ListItems returns a transform function that extracts the Items slice from
 // supported Kubernetes list objects.
 //

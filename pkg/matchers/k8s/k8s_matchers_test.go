@@ -2,11 +2,13 @@ package k8s_test
 
 import (
 	"testing"
+	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -56,6 +58,68 @@ func TestObjectMetadataMatchers(t *testing.T) {
 		k8s.HasAnnotation("managed-by", "operator"),
 		k8s.HasOwnerReference(owner),
 	))
+}
+
+func TestDeletionAndFinalizerMatchers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("matches typed deleting object with finalizer", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		now := metav1.Now()
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "test-config",
+				DeletionTimestamp: &now,
+				Finalizers:        []string{"example.com/finalizer"},
+			},
+		}
+
+		g.Expect(cm).To(SatisfyAll(
+			k8s.IsDeleting(),
+			k8s.HasFinalizer("example.com/finalizer"),
+		))
+	})
+
+	t.Run("rejects typed object without deletion timestamp or finalizer", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "test-config",
+				Finalizers: []string{"example.com/other"},
+			},
+		}
+
+		g.Expect(cm).ToNot(k8s.IsDeleting())
+		g.Expect(cm).ToNot(k8s.HasFinalizer("example.com/finalizer"))
+	})
+
+	t.Run("matches unstructured deleting object with finalizer", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		obj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]any{
+					"name":              "test-config",
+					"deletionTimestamp": metav1.Now().Format(time.RFC3339),
+					"finalizers": []any{
+						"example.com/finalizer",
+					},
+				},
+			},
+		}
+
+		g.Expect(obj).To(SatisfyAll(
+			k8s.IsDeleting(),
+			k8s.HasFinalizer("example.com/finalizer"),
+		))
+	})
 }
 
 func TestIsControlledBy(t *testing.T) {
