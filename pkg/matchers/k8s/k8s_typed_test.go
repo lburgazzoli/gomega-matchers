@@ -17,6 +17,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func newTypedResourcesWithObjects(objects ...client.Object) *k8s.Resources {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(objects...).
+		Build()
+
+	return k8s.NewResources(c, scheme)
+}
+
 func TestTypedGet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -257,6 +269,67 @@ func TestTypedDelete(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestGenericCreate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewResources(c, scheme)
+
+	g.Eventually(k8s.Create(k, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key1": "created",
+		},
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.metadata.name == "test-config" and
+		.metadata.namespace == "default" and
+		.data.key1 == "created"
+	`))
+}
+
+func TestGenericDelete(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cm).
+		Build()
+
+	k := k8s.NewResources(c, scheme)
+
+	g.Eventually(k8s.Delete(k, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	})).WithContext(t.Context()).Should(Succeed())
+
+	result := &corev1.ConfigMap{}
+	err := c.Get(t.Context(), types.NamespacedName{Name: "test-config", Namespace: "default"}, result)
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestTypedUpdate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -291,6 +364,95 @@ func TestTypedUpdate(t *testing.T) {
 		g.Expect(ok).To(BeTrue())
 		configMap.Data["key1"] = "updated"
 		configMap.Data["key2"] = "new"
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.data.key1 == "updated" and
+		.data.key2 == "new"
+	`))
+}
+
+func TestGenericUpsertCreatesMissingObject(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewResources(c, scheme)
+
+	g.Eventually(k8s.Upsert(k, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, func(cm *corev1.ConfigMap) {
+		if cm.Data == nil {
+			cm.Data = map[string]string{}
+		}
+
+		cm.Data["key1"] = "created"
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.data.key1 == "created"
+	`))
+}
+
+func TestGenericUpdateWithTypeInference(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key1": "original",
+		},
+	}
+
+	k := newTypedResourcesWithObjects(cm)
+
+	g.Eventually(k8s.Update(k, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, func(cm *corev1.ConfigMap) {
+		cm.Data["key1"] = "updated"
+		cm.Data["key2"] = "new"
+	})).WithContext(t.Context()).Should(jq.Match(`
+		.data.key1 == "updated" and
+		.data.key2 == "new"
+	`))
+}
+
+func TestGenericUpsertUpdatesExistingObject(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key1": "original",
+		},
+	}
+
+	k := newTypedResourcesWithObjects(cm)
+
+	g.Eventually(k8s.Upsert(k, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, func(cm *corev1.ConfigMap) {
+		cm.Data["key1"] = "updated"
+		cm.Data["key2"] = "new"
 	})).WithContext(t.Context()).Should(jq.Match(`
 		.data.key1 == "updated" and
 		.data.key2 == "new"

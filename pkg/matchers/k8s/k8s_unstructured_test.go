@@ -18,6 +18,23 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func newUnstructuredConfigMap(data map[string]any) *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      "test-config",
+				"namespace": "default",
+			},
+			"data": data,
+		},
+	}
+	obj.SetGroupVersionKind(configMapGVK)
+
+	return obj
+}
+
 func TestGet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -360,6 +377,51 @@ func TestDelete(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestCreateUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.CreateUnstructured(k, newUnstructuredConfigMap(map[string]any{
+		"key": "created",
+	}))).
+		WithContext(t.Context()).
+		Should(jq.Match(`.data.key == "created"`))
+}
+
+func TestDeleteUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(newUnstructuredConfigMap(map[string]any{
+			"key": "value",
+		})).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.DeleteUnstructured(k, newUnstructuredConfigMap(nil))).
+		WithContext(t.Context()).
+		Should(Succeed())
+
+	obj := newUnstructuredConfigMap(nil)
+	err := c.Get(t.Context(), types.NamespacedName{Name: "test-config", Namespace: "default"}, obj)
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -385,6 +447,30 @@ func TestUpdate(t *testing.T) {
 	k := k8s.NewUnstructuredResources(c)
 
 	g.Eventually(k.Update(configMapGVK, k8s.Named("test-config").InNamespace("default"),
+		func(obj *unstructured.Unstructured) {
+			data := obj.Object["data"].(map[string]any) //nolint:forcetypeassert
+			data["key"] = "new-value"
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "new-value"`))
+}
+
+func TestUpdateUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(newUnstructuredConfigMap(map[string]any{
+			"key": "old-value",
+		})).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.UpdateUnstructured(k, newUnstructuredConfigMap(nil),
 		func(obj *unstructured.Unstructured) {
 			data := obj.Object["data"].(map[string]any) //nolint:forcetypeassert
 			data["key"] = "new-value"
@@ -466,6 +552,50 @@ func TestUpdateWithJQTransform(t *testing.T) {
 		jq.Match(`.metadata.labels.updated == "true"`),
 		jq.Match(`.metadata.labels.app == "test"`),
 	))
+}
+
+func TestUpsertUnstructuredCreatesMissingObject(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.UpsertUnstructured(k, newUnstructuredConfigMap(nil),
+		func(obj *unstructured.Unstructured) {
+			obj.Object["data"] = map[string]any{"key": "created"}
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "created"`))
+}
+
+func TestUpsertUnstructuredUpdatesExistingObject(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(newUnstructuredConfigMap(map[string]any{
+			"key": "old-value",
+		})).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.UpsertUnstructured(k, newUnstructuredConfigMap(nil),
+		func(obj *unstructured.Unstructured) {
+			data := obj.Object["data"].(map[string]any) //nolint:forcetypeassert
+			data["key"] = "new-value"
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "new-value"`))
 }
 
 func TestDeleteClusterScoped(t *testing.T) {

@@ -32,6 +32,21 @@
 //		WithContext(ctx).
 //		Should(jq.Match(`. | length > 0`))
 //
+//	// Create an unstructured object via the distinct top-level helper.
+//	Eventually(k8s.CreateUnstructured(k, &unstructured.Unstructured{
+//		Object: map[string]any{
+//			"apiVersion": "v1",
+//			"kind":       "ConfigMap",
+//			"metadata": map[string]any{
+//				"name":      "my-config",
+//				"namespace": "default",
+//			},
+//			"data": map[string]any{
+//				"key": "value",
+//			},
+//		},
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
+//
 //	// Wait for an event for a specific object
 //	typed := k8s.NewResources(client, scheme)
 //	Eventually(typed.Events(
@@ -45,4 +60,46 @@
 //			"Reason": Equal("Ready"),
 //		}),
 //	))
+//
+//	// Create a typed object and assert on the created resource.
+//	Eventually(k8s.Create(typed, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//		Data: map[string]string{
+//			"key": "initial-value",
+//		},
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "initial-value"`))
+//
+//	// Apply a typed update without casting inside the callback.
+//	Eventually(k8s.Update(typed, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		cm.Data["key"] = "new-value"
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
+//
+//	// Create or update using the same typed callback.
+//	Eventually(k8s.Upsert(typed, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		if cm.Data == nil {
+//			cm.Data = map[string]string{}
+//		}
+//		cm.Data["key"] = "reconciled-value"
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "reconciled-value"`))
+//
+//	// Delete through the package-level typed helper.
+//	Eventually(k8s.Delete(typed, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	})).WithContext(ctx).Should(Succeed())
 package k8s

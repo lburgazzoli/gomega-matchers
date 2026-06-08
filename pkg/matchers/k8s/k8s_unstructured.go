@@ -106,6 +106,25 @@ func (m *UnstructuredResources) List(
 	}
 }
 
+// CreateUnstructured creates an unstructured Kubernetes resource and returns the
+// created object for matcher-oriented assertions.
+func CreateUnstructured(
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	opts ...client.CreateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		current := obj.DeepCopy()
+		gvk := current.GroupVersionKind()
+
+		if err := m.client.Create(ctx, current, opts...); err != nil {
+			return nil, fmt.Errorf("failed to create resource: %w", err)
+		}
+
+		return fetchUnstructuredResource(ctx, m, gvk, objectKeyFromUnstructured(current))
+	}
+}
+
 // Update retrieves a Kubernetes resource, applies an update function, and updates it.
 // Returns a function that can be used with Gomega's Eventually for async assertions.
 //
@@ -122,7 +141,7 @@ func (m *UnstructuredResources) List(
 func (m *UnstructuredResources) Update(
 	gvk schema.GroupVersionKind,
 	key ObjectKey,
-	updateFunc func(*unstructured.Unstructured),
+	fn func(*unstructured.Unstructured),
 	opts ...client.UpdateOption,
 ) func(context.Context) (*unstructured.Unstructured, error) {
 	return func(ctx context.Context) (*unstructured.Unstructured, error) {
@@ -134,7 +153,7 @@ func (m *UnstructuredResources) Update(
 			return nil, fmt.Errorf("failed to get resource for update: %w", err)
 		}
 
-		updateFunc(obj)
+		fn(obj)
 
 		err = m.client.Update(ctx, obj, opts...)
 		if err != nil {
@@ -150,6 +169,32 @@ func (m *UnstructuredResources) Update(
 		}
 
 		return result, nil
+	}
+}
+
+// UpdateUnstructured retrieves an unstructured resource, applies an update
+// function, and returns the updated object.
+func UpdateUnstructured(
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	fn func(*unstructured.Unstructured),
+	opts ...client.UpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return applyUnstructuredUpdate(ctx, m, obj, fn, opts...)
+	}
+}
+
+// UpsertUnstructured creates an unstructured resource when missing and otherwise
+// updates the existing live resource using the provided callback.
+func UpsertUnstructured(
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	fn func(*unstructured.Unstructured),
+	createOpts ...client.CreateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return applyUnstructuredUpsert(ctx, m, obj, fn, createOpts...)
 	}
 }
 
@@ -179,5 +224,18 @@ func (m *UnstructuredResources) Delete(
 		obj.SetNamespace(key.Namespace)
 
 		return m.client.Delete(ctx, obj, opts...)
+	}
+}
+
+// DeleteUnstructured deletes an unstructured resource via a top-level helper.
+func DeleteUnstructured(
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	opts ...client.DeleteOption,
+) func(context.Context) error {
+	return func(ctx context.Context) error {
+		target := obj.DeepCopy()
+
+		return m.client.Delete(ctx, target, opts...)
 	}
 }

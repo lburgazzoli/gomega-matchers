@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -123,6 +122,8 @@ func (m *Resources) List(
 
 // Delete deletes a Kubernetes resource using a typed object.
 // The GVK and object key are automatically extracted from the object.
+// For new typed code, prefer the package-level k8s.Delete helper for consistency
+// with k8s.Create, k8s.Update, and k8s.Upsert.
 // Returns a function that can be used with Gomega's Eventually for async assertions.
 //
 // Example:
@@ -139,22 +140,117 @@ func (m *Resources) Delete(
 	opts ...client.DeleteOption,
 ) func(context.Context) error {
 	return func(ctx context.Context) error {
-		gvk, _, err := m.extractGVKAndKey(obj)
-		if err != nil {
-			return err
-		}
+		return deleteTyped(ctx, m, obj, opts...)
+	}
+}
 
-		target := &unstructured.Unstructured{}
-		target.SetGroupVersionKind(gvk)
-		target.SetName(obj.GetName())
-		target.SetNamespace(obj.GetNamespace())
+// Create creates a typed Kubernetes resource and returns the created object as
+// unstructured data so it can be used with matcher-oriented assertions.
+//
+// Example:
+//
+//	k := k8s.NewResources(client, scheme)
+//	Eventually(k8s.Create(k, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//		Data: map[string]string{
+//			"key": "value",
+//		},
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
+func Create[T client.Object](
+	m *Resources,
+	obj T,
+	opts ...client.CreateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return createTyped(ctx, m, obj, opts...)
+	}
+}
 
-		return m.client.Delete(ctx, target, opts...)
+// Delete deletes a typed Kubernetes resource via the package-level generic API.
+//
+// Example:
+//
+//	k := k8s.NewResources(client, scheme)
+//	Eventually(k8s.Delete(k, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	})).WithContext(ctx).Should(Succeed())
+func Delete[T client.Object](
+	m *Resources,
+	obj T,
+	opts ...client.DeleteOption,
+) func(context.Context) error {
+	return func(ctx context.Context) error {
+		return deleteTyped(ctx, m, obj, opts...)
+	}
+}
+
+// Update retrieves a typed Kubernetes resource, applies a typed update function,
+// and updates it.
+//
+// This package-level helper uses generics so the update callback receives the
+// concrete object type and does not need a cast.
+//
+// Example:
+//
+//	k := k8s.NewResources(client, scheme)
+//	Eventually(k8s.Update(k, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		cm.Data["key"] = "new-value"
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
+func Update[T client.Object](
+	m *Resources,
+	obj T,
+	fn func(T),
+	opts ...client.UpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return updateTyped(ctx, m, obj, fn, opts...)
+	}
+}
+
+// Upsert creates a typed Kubernetes resource when it does not exist and
+// otherwise updates the existing live resource using the provided typed callback.
+//
+// Example:
+//
+//	k := k8s.NewResources(client, scheme)
+//	Eventually(k8s.Upsert(k, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		if cm.Data == nil {
+//			cm.Data = map[string]string{}
+//		}
+//		cm.Data["key"] = "value"
+//	})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
+func Upsert[T client.Object](
+	m *Resources,
+	obj T,
+	fn func(T),
+	createOpts ...client.CreateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return upsertTyped(ctx, m, obj, fn, createOpts...)
 	}
 }
 
 // Update retrieves a Kubernetes resource, applies an update function, and updates it.
-// This follows the Komega-style pattern for type-safe updates.
+// This method preserves the original Komega-style callback API.
+//
+// For new typed code, prefer the package-level k8s.Update helper so the callback
+// receives the concrete object type without a cast.
 // Returns a function that can be used with Gomega's Eventually for async assertions.
 //
 // Example:
@@ -171,51 +267,12 @@ func (m *Resources) Delete(
 //	})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
 func (m *Resources) Update(
 	obj client.Object,
-	updateFunc func(client.Object),
+	fn func(client.Object),
 	opts ...client.UpdateOption,
 ) func(context.Context) (*unstructured.Unstructured, error) {
 	return func(ctx context.Context) (*unstructured.Unstructured, error) {
-		return m.doUpdate(ctx, obj, updateFunc, opts...)
+		return updateTyped(ctx, m, obj, fn, opts...)
 	}
-}
-
-func (m *Resources) doUpdate(
-	ctx context.Context,
-	obj client.Object,
-	updateFunc func(client.Object),
-	opts ...client.UpdateOption,
-) (*unstructured.Unstructured, error) {
-	gvk, key, err := m.extractGVKAndKey(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	current, ok := obj.DeepCopyObject().(client.Object)
-	if !ok {
-		return nil, errors.New("failed to convert deep copy to client.Object")
-	}
-
-	err = m.client.Get(ctx, key.ToNamespacedName(), current)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource for update: %w", err)
-	}
-
-	updateFunc(current)
-
-	err = m.client.Update(ctx, current, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update resource: %w", err)
-	}
-
-	result := &unstructured.Unstructured{}
-	result.SetGroupVersionKind(gvk)
-
-	err = m.client.Get(ctx, key.ToNamespacedName(), result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get updated resource: %w", err)
-	}
-
-	return result, nil
 }
 
 // extractGVKAndKey extracts GroupVersionKind and ObjectKey from a typed Kubernetes object.
