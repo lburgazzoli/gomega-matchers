@@ -236,6 +236,17 @@ func TestTypedListWithJQMatcher(t *testing.T) {
 		Should(jq.Match(`. | length == 2`))
 }
 
+func TestTypedListIsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	k := newTypedResourcesWithObjects()
+
+	g.Eventually(k.List(&corev1.ConfigMapList{}, client.InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(k8s.IsEmptyList())
+}
+
 func TestTypedDelete(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

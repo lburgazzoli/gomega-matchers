@@ -72,3 +72,59 @@ func TestDataReturnsErrorForUnsupportedInput(t *testing.T) {
 
 	g.Expect(err).To(MatchError("expected *corev1.ConfigMap, *corev1.Secret, or *unstructured.Unstructured, got int"))
 }
+
+func TestListItemsExtractsTypedListItems(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	list := &corev1.ConfigMapList{
+		Items: []corev1.ConfigMap{
+			{
+				Data: map[string]string{
+					"key": "value",
+				},
+			},
+		},
+	}
+
+	g.Expect(list).To(WithTransform(k8s.ListItems(), HaveLen(1)))
+}
+
+func TestListItemsExtractsUnstructuredListItems(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	list := &unstructured.UnstructuredList{
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "test",
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(list).To(WithTransform(k8s.ListItems(), HaveLen(1)))
+}
+
+func TestListItemsReturnsErrorForUnsupportedInput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := k8s.ListItems()(42)
+
+	g.Expect(err).To(MatchError("expected runtime.Object list, got int"))
+}
+
+func TestListItemsReturnsErrorForNilUnstructuredList(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var list *unstructured.UnstructuredList
+
+	_, err := k8s.ListItems()(list)
+
+	g.Expect(err).To(MatchError("expected runtime.Object list, got *unstructured.UnstructuredList"))
+}

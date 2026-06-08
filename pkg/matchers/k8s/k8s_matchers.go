@@ -121,6 +121,11 @@ func MatchesGroupVersionKind(gvk schema.GroupVersionKind) types.GomegaMatcher {
 	return gomega.WithTransform(objectGVK, gomega.Equal(gvk))
 }
 
+// IsEmptyList matches a Kubernetes list object whose Items slice is empty.
+func IsEmptyList() types.GomegaMatcher {
+	return gomega.WithTransform(ListItems(), gomega.BeEmpty())
+}
+
 func asObject(actual any) (client.Object, error) {
 	obj, ok := actual.(client.Object)
 	if !ok {

@@ -303,6 +303,24 @@ func TestListWithJQMatcher(t *testing.T) {
 		Should(jq.Match(`.[0].metadata.name == "pod-1"`))
 }
 
+func TestListIsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k.List(podGVK, client.InNamespace("default"))).
+		WithContext(t.Context()).
+		Should(k8s.IsEmptyList())
+}
+
 func TestListWithLabelSelector(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

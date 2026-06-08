@@ -27,10 +27,15 @@
 //		WithContext(ctx).
 //		Should(BeTrue())
 //
-//	// List all pods in namespace
+//	// Inspect list items with standard Gomega matchers
 //	Eventually(k.List(podGVK, client.InNamespace("default"))).
 //		WithContext(ctx).
-//		Should(jq.Match(`. | length > 0`))
+//		Should(WithTransform(k8s.ListItems(), HaveLen(2)))
+//
+//	// Assert a list is empty
+//	Eventually(k.List(podGVK, client.InNamespace("default"))).
+//		WithContext(ctx).
+//		Should(k8s.IsEmptyList())
 //
 //	// Create an unstructured object via the distinct top-level helper.
 //	Eventually(k8s.CreateUnstructured(k, &unstructured.Unstructured{
