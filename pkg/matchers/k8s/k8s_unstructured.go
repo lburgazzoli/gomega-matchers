@@ -172,6 +172,24 @@ func (m *UnstructuredResources) Update(
 	}
 }
 
+// StatusUpdate retrieves a Kubernetes resource, applies a status update
+// function, and updates its status subresource.
+func (m *UnstructuredResources) StatusUpdate(
+	gvk schema.GroupVersionKind,
+	key ObjectKey,
+	fn func(*unstructured.Unstructured),
+	opts ...client.SubResourceUpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(gvk)
+		obj.SetName(key.Name)
+		obj.SetNamespace(key.Namespace)
+
+		return applyUnstructuredStatusUpdate(ctx, m, obj, fn, opts...)
+	}
+}
+
 // UpdateUnstructured retrieves an unstructured resource, applies an update
 // function, and returns the updated object.
 func UpdateUnstructured(
@@ -182,6 +200,19 @@ func UpdateUnstructured(
 ) func(context.Context) (*unstructured.Unstructured, error) {
 	return func(ctx context.Context) (*unstructured.Unstructured, error) {
 		return applyUnstructuredUpdate(ctx, m, obj, fn, opts...)
+	}
+}
+
+// StatusUpdateUnstructured retrieves an unstructured resource, applies a
+// status update function, and returns the updated object.
+func StatusUpdateUnstructured(
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	fn func(*unstructured.Unstructured),
+	opts ...client.SubResourceUpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return applyUnstructuredStatusUpdate(ctx, m, obj, fn, opts...)
 	}
 }
 

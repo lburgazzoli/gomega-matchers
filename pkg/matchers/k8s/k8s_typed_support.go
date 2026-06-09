@@ -93,6 +93,38 @@ func updateTyped[T client.Object](
 	return result, nil
 }
 
+func statusUpdateTyped[T client.Object](
+	ctx context.Context,
+	m *Resources,
+	obj T,
+	fn func(T),
+	opts ...client.SubResourceUpdateOption,
+) (*unstructured.Unstructured, error) {
+	gvk, key, err := m.extractGVKAndKey(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	current, ok := obj.DeepCopyObject().(T)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert deep copy to %T", obj)
+	}
+
+	err = m.client.Get(ctx, key.ToNamespacedName(), current)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource for status update: %w", err)
+	}
+
+	fn(current)
+
+	err = m.client.Status().Update(ctx, current, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update resource status: %w", err)
+	}
+
+	return fetchUnstructured(ctx, m, gvk, key)
+}
+
 func upsertTyped[T client.Object](
 	ctx context.Context,
 	m *Resources,

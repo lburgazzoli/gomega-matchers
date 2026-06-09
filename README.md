@@ -187,21 +187,25 @@ import (
 k := k8s.New(client, scheme)
 
 // Get a resource with Eventually
-Eventually(k.Get(&corev1.ConfigMap{
+Eventually(ctx, k.Get(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})).WithContext(ctx).Should(jq.Match(`.data.key == "value"`))
+})).Should(
+    jq.Match(`.data.key == "value"`),
+)
 
 // List resources
-Eventually(k.List(&corev1.ConfigMapList{},
+Eventually(ctx, k.List(&corev1.ConfigMapList{},
     client.InNamespace("default"),
     client.MatchingLabels{"app": "myapp"},
-)).WithContext(ctx).Should(jq.Match(`. | length > 0`))
+)).Should(
+    jq.Match(`. | length > 0`),
+)
 
 // Update a resource (Komega-style)
-Eventually(k.Update(&corev1.ConfigMap{
+Eventually(ctx, k.Update(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
@@ -209,15 +213,29 @@ Eventually(k.Update(&corev1.ConfigMap{
 }, func(obj client.Object) {
     configMap := obj.(*corev1.ConfigMap)
     configMap.Data["key"] = "new-value"
-})).WithContext(ctx).Should(jq.Match(`.data.key == "new-value"`))
+})).Should(
+    jq.Match(`.data.key == "new-value"`),
+)
+
+// Update a status subresource with the typed helper
+Eventually(ctx, k8s.StatusUpdate(k, &corev1.Pod{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-pod",
+        Namespace: "default",
+    },
+}, func(pod *corev1.Pod) {
+    pod.Status.Phase = corev1.PodSucceeded
+})).Should(
+    jq.Match(`.status.phase == "Succeeded"`),
+)
 
 // Delete a resource
-Eventually(k.Delete(&corev1.ConfigMap{
+Eventually(ctx, k.Delete(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})).WithContext(ctx).Should(Succeed())
+})).Should(Succeed())
 
 // Direct invocation is also supported when needed
 obj, err := k.Get(&corev1.ConfigMap{
@@ -230,12 +248,12 @@ Expect(err).ToNot(HaveOccurred())
 Expect(obj).Should(jq.Match(`.data.key == "value"`))
 
 // Compose object-based metadata and GVK matchers
-Eventually(k.Get(&corev1.ConfigMap{
+Eventually(ctx, k.Get(&corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})).WithContext(ctx).Should(SatisfyAll(
+})).Should(SatisfyAll(
     k8s.HasName("my-config"),
     k8s.HasNamespace("default"),
     k8s.HasLabel("app", "myapp"),
@@ -246,6 +264,24 @@ Eventually(k.Get(&corev1.ConfigMap{
         Kind:    "ConfigMap",
     }),
 ))
+
+// Work with list and object metadata using standard Gomega matchers
+Eventually(ctx, k.List(&corev1.ConfigMapList{},
+    client.InNamespace("default"),
+)).Should(WithTransform(
+    k8s.ListItems(),
+    HaveLen(2),
+))
+
+Eventually(ctx, k.Get(&corev1.Pod{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-pod",
+        Namespace: "default",
+    },
+})).Should(SatisfyAll(
+    k8s.IsDeleting(),
+    k8s.HasFinalizer("example.com/finalizer"),
+))
 ```
 
 ### Unstructured API
@@ -254,6 +290,7 @@ The unstructured API works with GVK and returns functions compatible with `Event
 
 ```go
 import (
+    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
     "k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -263,14 +300,25 @@ k := k8s.NewUnstructured(client)
 podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
 
 // Get with Eventually
-Eventually(k.Get(podGVK, k8s.Named("my-pod").InNamespace("default"))).
-    WithContext(ctx).
-    Should(jq.Match(`.status.phase == "Running"`))
+Eventually(ctx, k.Get(podGVK, k8s.Named("my-pod").InNamespace("default"))).
+    Should(
+        jq.Match(`.status.phase == "Running"`),
+    )
 
 // List resources
-Eventually(k.List(podGVK, client.InNamespace("default"))).
-    WithContext(ctx).
-    Should(jq.Match(`. | length > 0`))
+Eventually(ctx, k.List(podGVK, client.InNamespace("default"))).
+    Should(
+        jq.Match(`. | length > 0`),
+    )
+
+// Update a status subresource
+Eventually(ctx, k.StatusUpdate(podGVK, k8s.Named("my-pod").InNamespace("default"),
+    func(obj *unstructured.Unstructured) {
+        _ = unstructured.SetNestedField(obj.Object, "Succeeded", "status", "phase")
+    },
+)).Should(
+    jq.Match(`.status.phase == "Succeeded"`),
+)
 
 // Delete a resource
 err := k.Delete(podGVK, k8s.Named("my-pod").InNamespace("default"))(ctx)

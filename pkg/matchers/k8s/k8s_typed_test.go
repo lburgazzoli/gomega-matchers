@@ -440,6 +440,78 @@ func TestGenericUpdateWithTypeInference(t *testing.T) {
 	`))
 }
 
+func TestTypedStatusUpdate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&corev1.Pod{}).
+		WithObjects(pod).
+		Build()
+
+	k := k8s.NewResources(c, scheme)
+
+	g.Eventually(k.StatusUpdate(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+	}, func(o client.Object) {
+		currentPod, ok := o.(*corev1.Pod)
+		g.Expect(ok).To(BeTrue())
+		currentPod.Status.Phase = corev1.PodSucceeded
+	})).WithContext(t.Context()).Should(jq.Match(`.status.phase == "Succeeded"`))
+}
+
+func TestGenericStatusUpdateWithTypeInference(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&corev1.Pod{}).
+		WithObjects(pod).
+		Build()
+
+	k := k8s.NewResources(c, scheme)
+
+	g.Eventually(k8s.StatusUpdate(k, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+	}, func(pod *corev1.Pod) {
+		pod.Status.Phase = corev1.PodSucceeded
+	})).WithContext(t.Context()).Should(jq.Match(`.status.phase == "Succeeded"`))
+}
+
 func TestGenericUpsertUpdatesExistingObject(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

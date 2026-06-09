@@ -35,6 +35,22 @@ func newUnstructuredConfigMap(data map[string]any) *unstructured.Unstructured {
 	return obj
 }
 
+func newUnstructuredPod() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":      "test-pod",
+				"namespace": "default",
+			},
+		},
+	}
+	obj.SetGroupVersionKind(podGVK)
+
+	return obj
+}
+
 func TestGet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -494,6 +510,72 @@ func TestUpdateUnstructured(t *testing.T) {
 			data["key"] = "new-value"
 		},
 	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "new-value"`))
+}
+
+func TestStatusUpdate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&corev1.Pod{}).
+		WithObjects(pod).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k.StatusUpdate(podGVK, k8s.Named("test-pod").InNamespace("default"),
+		func(obj *unstructured.Unstructured) {
+			err := unstructured.SetNestedField(obj.Object, "Succeeded", "status", "phase")
+			g.Expect(err).ToNot(HaveOccurred())
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.status.phase == "Succeeded"`))
+}
+
+func TestStatusUpdateUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&corev1.Pod{}).
+		WithObjects(pod).
+		Build()
+
+	k := k8s.NewUnstructuredResources(c)
+
+	g.Eventually(k8s.StatusUpdateUnstructured(k, newUnstructuredPod(),
+		func(obj *unstructured.Unstructured) {
+			err := unstructured.SetNestedField(obj.Object, "Succeeded", "status", "phase")
+			g.Expect(err).ToNot(HaveOccurred())
+		},
+	)).WithContext(t.Context()).Should(jq.Match(`.status.phase == "Succeeded"`))
 }
 
 func TestUpdateWithJQMatcher(t *testing.T) {

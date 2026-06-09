@@ -218,6 +218,19 @@ func Update[T client.Object](
 	}
 }
 
+// StatusUpdate retrieves a typed Kubernetes resource, applies a typed status
+// update function, and updates its status subresource.
+func StatusUpdate[T client.Object](
+	m *Resources,
+	obj T,
+	fn func(T),
+	opts ...client.SubResourceUpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return statusUpdateTyped(ctx, m, obj, fn, opts...)
+	}
+}
+
 // Upsert creates a typed Kubernetes resource when it does not exist and
 // otherwise updates the existing live resource using the provided typed callback.
 //
@@ -272,6 +285,18 @@ func (m *Resources) Update(
 ) func(context.Context) (*unstructured.Unstructured, error) {
 	return func(ctx context.Context) (*unstructured.Unstructured, error) {
 		return updateTyped(ctx, m, obj, fn, opts...)
+	}
+}
+
+// StatusUpdate retrieves a Kubernetes resource, applies a status update
+// function, and updates its status subresource.
+func (m *Resources) StatusUpdate(
+	obj client.Object,
+	fn func(client.Object),
+	opts ...client.SubResourceUpdateOption,
+) func(context.Context) (*unstructured.Unstructured, error) {
+	return func(ctx context.Context) (*unstructured.Unstructured, error) {
+		return statusUpdateTyped(ctx, m, obj, fn, opts...)
 	}
 }
 

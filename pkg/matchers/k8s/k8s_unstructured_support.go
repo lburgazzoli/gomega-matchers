@@ -78,6 +78,32 @@ func applyUnstructuredUpdate(
 	return fetchUnstructuredResource(ctx, m, gvk, key)
 }
 
+func applyUnstructuredStatusUpdate(
+	ctx context.Context,
+	m *UnstructuredResources,
+	obj *unstructured.Unstructured,
+	fn func(*unstructured.Unstructured),
+	opts ...client.SubResourceUpdateOption,
+) (*unstructured.Unstructured, error) {
+	gvk := obj.GroupVersionKind()
+	key := objectKeyFromUnstructured(obj)
+	current := obj.DeepCopy()
+
+	err := m.client.Get(ctx, key.ToNamespacedName(), current)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource for status update: %w", err)
+	}
+
+	fn(current)
+
+	err = m.client.Status().Update(ctx, current, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update resource status: %w", err)
+	}
+
+	return fetchUnstructuredResource(ctx, m, gvk, key)
+}
+
 func applyUnstructuredUpsert(
 	ctx context.Context,
 	m *UnstructuredResources,
