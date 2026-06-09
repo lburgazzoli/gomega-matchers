@@ -21,6 +21,10 @@ func k8sListConverter(in any) (any, error) {
 	case unstructured.UnstructuredList:
 		return convertUnstructuredListItems(v.Items), nil
 	case *unstructured.UnstructuredList:
+		if v == nil {
+			return nil, jq.ErrTypeNotSupported
+		}
+
 		return convertUnstructuredListItems(v.Items), nil
 	case client.ObjectList:
 		return convertTypedListItems(v)
@@ -62,6 +66,10 @@ func k8sObjectConverter(in any) (any, error) {
 	case unstructured.Unstructured:
 		return v.Object, nil
 	case *unstructured.Unstructured:
+		if v == nil {
+			return nil, jq.ErrTypeNotSupported
+		}
+
 		return v.Object, nil
 	case client.Object:
 		return runtime.DefaultUnstructuredConverter.ToUnstructured(v)

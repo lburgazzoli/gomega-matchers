@@ -52,6 +52,23 @@ func TestUnstructuredPtrConverter(t *testing.T) {
 	g.Expect(result).Should(Equal(obj.Object))
 }
 
+func TestUnstructuredPtrConverterNilDoesNotPanic(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var obj *unstructured.Unstructured
+	var (
+		result any
+		err    error
+	)
+
+	g.Expect(func() {
+		result, err = jq.Convert(obj)
+	}).ShouldNot(Panic())
+	g.Expect(result).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestUnstructuredListPtrConverter(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -70,6 +87,23 @@ func TestUnstructuredListPtrConverter(t *testing.T) {
 		map[string]any{"apiVersion": "v1", "kind": "Pod"},
 		map[string]any{"apiVersion": "v1", "kind": "Service"},
 	}))
+}
+
+func TestUnstructuredListPtrConverterNilDoesNotPanic(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var list *unstructured.UnstructuredList
+	var (
+		result any
+		err    error
+	)
+
+	g.Expect(func() {
+		result, err = jq.Convert(list)
+	}).ShouldNot(Panic())
+	g.Expect(result).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
 }
 
 func TestClientObjectConverter(t *testing.T) {
