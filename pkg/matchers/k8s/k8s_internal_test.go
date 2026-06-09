@@ -16,7 +16,7 @@ func TestAbsentNotFound(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	isAbsent, err := absent(func(context.Context) (struct{}, error) {
+	isAbsent, err := isAbsent(func(context.Context) (struct{}, error) {
 		return struct{}{}, apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "pods"}, "my-pod")
 	})(t.Context())
 
@@ -28,7 +28,7 @@ func TestAbsentNoMatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	isAbsent, err := absent(func(context.Context) (struct{}, error) {
+	isAbsent, err := isAbsent(func(context.Context) (struct{}, error) {
 		return struct{}{}, &apimeta.NoKindMatchError{
 			GroupKind:        schema.GroupKind{Group: "apps", Kind: "Deployment"},
 			SearchedVersions: []string{"v1"},
@@ -43,7 +43,7 @@ func TestAbsentResourceExists(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	isAbsent, err := absent(func(context.Context) (struct{}, error) {
+	isAbsent, err := isAbsent(func(context.Context) (struct{}, error) {
 		return struct{}{}, nil
 	})(t.Context())
 
@@ -55,7 +55,7 @@ func TestAbsentUnexpectedError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, err := absent(func(context.Context) (struct{}, error) {
+	_, err := isAbsent(func(context.Context) (struct{}, error) {
 		return struct{}{}, errors.New("connection refused")
 	})(t.Context())
 
@@ -67,7 +67,7 @@ func TestNotFoundReturnsTrue(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	isNotFound, err := notFound(func(context.Context) (struct{}, error) {
+	isNotFound, err := isNotFound(func(context.Context) (struct{}, error) {
 		return struct{}{}, apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "pods"}, "my-pod")
 	})(t.Context())
 
@@ -79,7 +79,7 @@ func TestNotFoundStopTryingOnNoMatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, err := notFound(func(context.Context) (struct{}, error) {
+	_, err := isNotFound(func(context.Context) (struct{}, error) {
 		return struct{}{}, &apimeta.NoKindMatchError{
 			GroupKind:        schema.GroupKind{Group: "apps", Kind: "Deployment"},
 			SearchedVersions: []string{"v1"},
@@ -94,7 +94,7 @@ func TestNotFoundResourceExists(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	isNotFound, err := notFound(func(context.Context) (struct{}, error) {
+	isNotFound, err := isNotFound(func(context.Context) (struct{}, error) {
 		return struct{}{}, nil
 	})(t.Context())
 
@@ -106,7 +106,7 @@ func TestNotFoundUnexpectedError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, err := notFound(func(context.Context) (struct{}, error) {
+	_, err := isNotFound(func(context.Context) (struct{}, error) {
 		return struct{}{}, errors.New("connection refused")
 	})(t.Context())
 

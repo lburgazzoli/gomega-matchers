@@ -312,9 +312,7 @@ func TestObjectMatchersWorkWithEventuallyGet(t *testing.T) {
 		WithObjects(cm).
 		Build()
 
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.Get(&corev1.ConfigMap{
+	g.Eventually(k8s.Get(c, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-config",
 			Namespace: "default",
@@ -324,10 +322,5 @@ func TestObjectMatchersWorkWithEventuallyGet(t *testing.T) {
 		k8s.HasNamespace("default"),
 		k8s.HasLabel("env", "prod"),
 		k8s.HasAnnotation("team", "platform"),
-		k8s.MatchesGroupVersion(schema.GroupVersion{Version: "v1"}),
-		k8s.MatchesGroupVersionKind(schema.GroupVersionKind{
-			Version: "v1",
-			Kind:    "ConfigMap",
-		}),
 	))
 }

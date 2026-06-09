@@ -19,107 +19,55 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestTypedEvents(t *testing.T) {
+func TestEvents(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-
-	firstEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-1",
-			Namespace: "default",
-			Labels: map[string]string{
-				"app": "frontend",
+	c := newFakeClient(
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-1", Namespace: "default", Labels: map[string]string{"app": "frontend"}},
+			Reason:     "Created",
+			InvolvedObject: corev1.ObjectReference{
+				Kind: "Workbench", Name: "module-a", Namespace: "default",
 			},
 		},
-		Reason: "Created",
-		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
-		},
-	}
-
-	secondEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-2",
-			Namespace: "default",
-			Labels: map[string]string{
-				"app": "backend",
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-2", Namespace: "default", Labels: map[string]string{"app": "backend"}},
+			Reason:     "Ready",
+			InvolvedObject: corev1.ObjectReference{
+				Kind: "Workbench", Name: "module-b", Namespace: "default",
 			},
 		},
-		Reason: "Ready",
-		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-b",
-			Namespace: "default",
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-3", Namespace: "other"},
+			Reason:     "Created",
+			InvolvedObject: corev1.ObjectReference{
+				Kind: "Workbench", Name: "module-a", Namespace: "other",
+			},
 		},
-	}
+	)
 
-	otherNamespaceEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-3",
-			Namespace: "other",
-		},
-		Reason: "Created",
-		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "other",
-		},
-	}
-
-	c := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(firstEvent, secondEvent, otherNamespaceEvent).
-		Build()
-
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.Events(k8s.InNamespace("default"))).
+	g.Eventually(k8s.Events(c, k8s.InNamespace("default"))).
 		WithContext(t.Context()).
 		Should(HaveLen(2))
 }
 
-func TestTypedEventsWithMatchingLabels(t *testing.T) {
+func TestEventsWithMatchingLabels(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-
-	firstEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-1",
-			Namespace: "default",
-			Labels: map[string]string{
-				"app": "frontend",
-			},
+	c := newFakeClient(
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-1", Namespace: "default", Labels: map[string]string{"app": "frontend"}},
+			Reason:     "Created",
 		},
-		Reason: "Created",
-	}
-
-	secondEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-2",
-			Namespace: "default",
-			Labels: map[string]string{
-				"app": "backend",
-			},
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-2", Namespace: "default", Labels: map[string]string{"app": "backend"}},
+			Reason:     "Ready",
 		},
-		Reason: "Ready",
-	}
+	)
 
-	c := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(firstEvent, secondEvent).
-		Build()
-
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.Events(
+	g.Eventually(k8s.Events(c,
 		k8s.InNamespace("default"),
 		k8s.MatchingLabels(client.MatchingLabels{"app": "frontend"}),
 	)).
@@ -129,52 +77,31 @@ func TestTypedEventsWithMatchingLabels(t *testing.T) {
 		})))
 }
 
-func TestTypedEventsForObject(t *testing.T) {
+func TestEventsForObject(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-
-	firstEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-1",
-			Namespace: "default",
+	c := newFakeClient(
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-1", Namespace: "default"},
+			Reason:     "Created",
+			InvolvedObject: corev1.ObjectReference{
+				Kind: "Workbench", Name: "module-a", Namespace: "default",
+			},
 		},
-		Reason: "Created",
-		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
+		&corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-2", Namespace: "default"},
+			Reason:     "Ready",
+			InvolvedObject: corev1.ObjectReference{
+				Kind: "Workbench", Name: "module-b", Namespace: "default",
+			},
 		},
-	}
+	)
 
-	secondEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-2",
-			Namespace: "default",
-		},
-		Reason: "Ready",
-		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-b",
-			Namespace: "default",
-		},
-	}
-
-	c := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(firstEvent, secondEvent).
-		Build()
-
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.Events(
+	g.Eventually(k8s.Events(c,
 		k8s.InNamespace("default"),
 		k8s.ForObject(corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
+			Kind: "Workbench", Name: "module-a", Namespace: "default",
 		}),
 	)).
 		WithContext(t.Context()).
@@ -183,86 +110,50 @@ func TestTypedEventsForObject(t *testing.T) {
 		})))
 }
 
-func TestTypedHasEvent(t *testing.T) {
+func TestEventsContainElement(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-
-	event := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-1",
-			Namespace: "default",
-		},
-		Reason: "Ready",
+	c := newFakeClient(&corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{Name: "event-1", Namespace: "default"},
+		Reason:     "Ready",
 		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
+			Kind: "Workbench", Name: "module-a", Namespace: "default",
 		},
-	}
+	})
 
-	c := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(event).
-		Build()
-
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.HasEvent(
-		gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-			"Reason": Equal("Ready"),
-		}),
+	g.Eventually(k8s.Events(c,
 		k8s.InNamespace("default"),
 		k8s.ForObject(corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
+			Kind: "Workbench", Name: "module-a", Namespace: "default",
 		}),
 	)).
 		WithContext(t.Context()).
-		Should(BeTrue())
+		Should(ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+			"Reason": Equal("Ready"),
+		})))
 }
 
-func TestTypedHasEventNotFound(t *testing.T) {
+func TestEventsDoNotContainElement(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-
-	event := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "event-1",
-			Namespace: "default",
-		},
-		Reason: "Created",
+	c := newFakeClient(&corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{Name: "event-1", Namespace: "default"},
+		Reason:     "Created",
 		InvolvedObject: corev1.ObjectReference{
-			Kind:      "Workbench",
-			Name:      "module-a",
-			Namespace: "default",
+			Kind: "Workbench", Name: "module-a", Namespace: "default",
 		},
-	}
+	})
 
-	c := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(event).
-		Build()
-
-	k := k8s.NewResources(c, scheme)
-
-	g.Eventually(k.HasEvent(
-		gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-			"Reason": Equal("Ready"),
-		}),
-		k8s.InNamespace("default"),
-	)).
+	g.Eventually(k8s.Events(c, k8s.InNamespace("default"))).
 		WithContext(t.Context()).
-		Should(BeFalse())
+		Should(Not(ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+			"Reason": Equal("Ready"),
+		}))))
 }
 
-func TestTypedEventsListError(t *testing.T) {
+func TestEventsListError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -284,8 +175,6 @@ func TestTypedEventsListError(t *testing.T) {
 		},
 	)
 
-	k := k8s.NewResources(c, scheme)
-
-	_, err := k.Events()(t.Context())
+	_, err := k8s.Events(c)(t.Context())
 	g.Expect(err).To(MatchError(expectedErr))
 }

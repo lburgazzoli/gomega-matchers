@@ -1,8 +1,8 @@
 // Package k8s provides Kubernetes test helpers that integrate seamlessly with Gomega matchers.
 //
-// The package wraps client.Client operations to return matcher functions compatible with
-// Gomega's Eventually() and Expect(), making it easy to write tests that combine
-// Kubernetes resource operations with JQ-based assertions.
+// All operations are package-level generic functions that take a client.Client directly.
+// Both typed objects (e.g., *corev1.ConfigMap) and unstructured objects
+// (*unstructured.Unstructured) work with the same functions — the type parameter is inferred.
 //
 // Example usage:
 //
@@ -10,51 +10,92 @@
 //		. "github.com/onsi/gomega"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
-//		"k8s.io/apimachinery/pkg/runtime/schema"
 //		"sigs.k8s.io/controller-runtime/pkg/client"
 //	)
 //
-//	k := k8s.NewUnstructuredResources(client)
-//	podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
+//	cli := /* client.Client */
 //
-//	// Wait for pod to be ready
-//	Eventually(ctx, k.Get(podGVK, k8s.Named("my-pod").InNamespace("default"))).
-//		Should(
-//			jq.Match(`.status.phase == "Running"`),
-//		)
-//
-//	// Wait for pod to be deleted (Absent tolerates missing CRD; NotFound requires the type to exist)
-//	Eventually(ctx, k.Absent(podGVK, k8s.Named("my-pod").InNamespace("default"))).
-//		Should(BeTrue())
-//
-//	// Inspect list items with standard Gomega matchers
-//	Eventually(ctx, k.List(podGVK, client.InNamespace("default"))).
-//		Should(WithTransform(k8s.ListItems(), HaveLen(2)))
-//
-//	// Assert a list is empty
-//	Eventually(ctx, k.List(podGVK, client.InNamespace("default"))).
-//		Should(k8s.IsEmptyList())
-//
-//	// Create an unstructured object via the distinct top-level helper.
-//	Eventually(ctx, k8s.CreateUnstructured(k, &unstructured.Unstructured{
-//		Object: map[string]any{
-//			"apiVersion": "v1",
-//			"kind":       "ConfigMap",
-//			"metadata": map[string]any{
-//				"name":      "my-config",
-//				"namespace": "default",
-//			},
-//			"data": map[string]any{
-//				"key": "value",
-//			},
+//	// Get a typed object — JQ matchers work transparently
+//	Eventually(ctx, k8s.Get(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
 //		},
-//	})).Should(
-//		jq.Match(`.data.key == "value"`),
-//	)
+//	})).Should(jq.Match(`.data.key == "value"`))
 //
-//	// Wait for an event for a specific object
-//	typed := k8s.NewResources(client, scheme)
-//	Eventually(ctx, typed.Events(
+//	// Get an unstructured object — same function
+//	pod := &unstructured.Unstructured{}
+//	pod.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Pod"})
+//	pod.SetName("my-pod")
+//	pod.SetNamespace("default")
+//	Eventually(ctx, k8s.Get(cli, pod)).
+//		Should(jq.Match(`.status.phase == "Running"`))
+//
+//	// Wait for a resource to be deleted
+//	Eventually(ctx, k8s.Absent(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	})).Should(BeTrue())
+//
+//	// List with typed list objects
+//	Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
+//		client.InNamespace("default"),
+//	)).Should(WithTransform(k8s.ListItems(), HaveLen(2)))
+//
+//	// Create a typed object and assert on it
+//	Eventually(ctx, k8s.Create(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//		Data: map[string]string{"key": "value"},
+//	})).Should(jq.Match(`.data.key == "value"`))
+//
+//	// Update with a typed callback — no casting needed
+//	Eventually(ctx, k8s.Update(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		cm.Data["key"] = "new-value"
+//	})).Should(jq.Match(`.data.key == "new-value"`))
+//
+//	// Update a status subresource
+//	Eventually(ctx, k8s.StatusUpdate(cli, &corev1.Pod{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-pod",
+//			Namespace: "default",
+//		},
+//	}, func(pod *corev1.Pod) {
+//		pod.Status.Phase = corev1.PodSucceeded
+//	})).Should(jq.Match(`.status.phase == "Succeeded"`))
+//
+//	// Create or update idempotently
+//	Eventually(ctx, k8s.Upsert(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}, func(cm *corev1.ConfigMap) {
+//		if cm.Data == nil {
+//			cm.Data = map[string]string{}
+//		}
+//		cm.Data["key"] = "reconciled-value"
+//	})).Should(jq.Match(`.data.key == "reconciled-value"`))
+//
+//	// Delete
+//	Eventually(ctx, k8s.Delete(cli, &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	})).Should(Succeed())
+//
+//	// Query events
+//	Eventually(ctx, k8s.Events(cli,
 //		k8s.InNamespace("default"),
 //		k8s.ForObject(corev1.ObjectReference{
 //			Kind: "Pod",
@@ -66,63 +107,15 @@
 //		}),
 //	))
 //
-//	// Create a typed object and assert on the created resource.
-//	Eventually(ctx, k8s.Create(typed, &corev1.ConfigMap{
+//	// Metadata matchers compose with SatisfyAll
+//	Eventually(ctx, k8s.Get(cli, &corev1.ConfigMap{
 //		ObjectMeta: metav1.ObjectMeta{
 //			Name:      "my-config",
 //			Namespace: "default",
 //		},
-//		Data: map[string]string{
-//			"key": "initial-value",
-//		},
-//	})).Should(
-//		jq.Match(`.data.key == "initial-value"`),
-//	)
-//
-//	// Apply a typed update without casting inside the callback.
-//	Eventually(ctx, k8s.Update(typed, &corev1.ConfigMap{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "my-config",
-//			Namespace: "default",
-//		},
-//	}, func(cm *corev1.ConfigMap) {
-//		cm.Data["key"] = "new-value"
-//	})).Should(
-//		jq.Match(`.data.key == "new-value"`),
-//	)
-//
-//	// Update a status subresource with the same typed callback style.
-//	Eventually(ctx, k8s.StatusUpdate(typed, &corev1.Pod{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "my-pod",
-//			Namespace: "default",
-//		},
-//	}, func(pod *corev1.Pod) {
-//		pod.Status.Phase = corev1.PodSucceeded
-//	})).Should(
-//		jq.Match(`.status.phase == "Succeeded"`),
-//	)
-//
-//	// Create or update using the same typed callback.
-//	Eventually(ctx, k8s.Upsert(typed, &corev1.ConfigMap{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "my-config",
-//			Namespace: "default",
-//		},
-//	}, func(cm *corev1.ConfigMap) {
-//		if cm.Data == nil {
-//			cm.Data = map[string]string{}
-//		}
-//		cm.Data["key"] = "reconciled-value"
-//	})).Should(
-//		jq.Match(`.data.key == "reconciled-value"`),
-//	)
-//
-//	// Delete through the package-level typed helper.
-//	Eventually(ctx, k8s.Delete(typed, &corev1.ConfigMap{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "my-config",
-//			Namespace: "default",
-//		},
-//	})).Should(Succeed())
+//	})).Should(SatisfyAll(
+//		k8s.HasName("my-config"),
+//		k8s.HasLabel("env", "prod"),
+//		k8s.HasAnnotation("team", "platform"),
+//	))
 package k8s

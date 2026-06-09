@@ -1,10 +1,6 @@
 package k8s
 
 import (
-	"context"
-
-	"github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -48,37 +44,6 @@ func ForObject(ref corev1.ObjectReference) EventOption {
 			return matchesObjectReference(ref, event.InvolvedObject)
 		})
 	})
-}
-
-// Events lists typed Kubernetes events and returns them as a plain slice so
-// callers can use standard Gomega collection matchers directly.
-func (m *Resources) Events(opts ...EventOption) func(context.Context) ([]corev1.Event, error) {
-	return func(ctx context.Context) ([]corev1.Event, error) {
-		resolved := resolveEventOptions(opts...)
-		events := &corev1.EventList{}
-
-		if err := m.client.List(ctx, events, resolved.listOptions...); err != nil {
-			return nil, err
-		}
-
-		return resolved.filter(events.Items), nil
-	}
-}
-
-// HasEvent reports whether the listed events contain at least one element that
-// matches the provided Gomega matcher.
-func (m *Resources) HasEvent(
-	eventMatcher types.GomegaMatcher,
-	opts ...EventOption,
-) func(context.Context) (bool, error) {
-	return func(ctx context.Context) (bool, error) {
-		events, err := m.Events(opts...)(ctx)
-		if err != nil {
-			return false, err
-		}
-
-		return gomega.ContainElement(eventMatcher).Match(events)
-	}
 }
 
 func resolveEventOptions(opts ...EventOption) eventOptions {

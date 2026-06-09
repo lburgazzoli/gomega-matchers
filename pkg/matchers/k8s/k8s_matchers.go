@@ -143,6 +143,9 @@ func ownerRefFields(owner client.Object) gstruct.Fields {
 }
 
 // MatchesGroupVersion matches a Kubernetes object by group and version.
+// This reads the GVK from the object's TypeMeta, which is populated for
+// unstructured objects and real apiserver responses but typically empty
+// for typed objects returned by the fake client.
 func MatchesGroupVersion(groupVersion schema.GroupVersion) types.GomegaMatcher {
 	return gomega.WithTransform(
 		func(actual any) (schema.GroupVersion, error) {
@@ -158,6 +161,9 @@ func MatchesGroupVersion(groupVersion schema.GroupVersion) types.GomegaMatcher {
 }
 
 // MatchesGroupVersionKind matches a Kubernetes object by full GroupVersionKind.
+// This reads the GVK from the object's TypeMeta, which is populated for
+// unstructured objects and real apiserver responses but typically empty
+// for typed objects returned by the fake client.
 func MatchesGroupVersionKind(gvk schema.GroupVersionKind) types.GomegaMatcher {
 	return gomega.WithTransform(
 		objectGVK,

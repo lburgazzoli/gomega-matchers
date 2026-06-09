@@ -12,7 +12,7 @@ go get github.com/lburgazzoli/gomega-matchers
 
 - **JQ matchers** - Use [jq](https://jqlang.github.io/jq/) expressions to query and validate JSON structures
 - **Flexible input types** - Works with JSON strings, byte slices, readers, and Go types (maps, structs)
-- **Kubernetes support** - Native support for `unstructured.Unstructured` objects
+- **Kubernetes support** - Generic helpers for typed and unstructured Kubernetes objects
 - **Composable** - Combine with Gomega's built-in matchers like `And()`, `Or()`, and `WithTransform()`
 
 ## Usage
@@ -164,17 +164,16 @@ Expect(`{"status":{"foo":"bar","count":42}}`).Should(
 )
 ```
 
-## Kubernetes Matchers
+## Kubernetes Helpers
 
-The library provides helper functions for testing Kubernetes resources with Gomega. Two APIs are available: a **typed API** that works with Kubernetes object types, and an **unstructured API** that works with GVK (GroupVersionKind).
-
-### Typed API (Recommended)
-
-The typed API accepts Kubernetes typed objects (e.g., `*corev1.ConfigMap`) and returns functions compatible with Gomega's `Eventually()` for async assertions:
+The library provides generic helpers for testing Kubernetes resources with Gomega.
+All operations are package-level functions that take a `client.Client` directly.
+Both typed objects (e.g., `*corev1.ConfigMap`) and unstructured objects work with the same functions.
 
 ```go
 import (
     . "github.com/onsi/gomega"
+    "github.com/onsi/gomega/gstruct"
     "github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
     "github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
     corev1 "k8s.io/api/core/v1"
@@ -183,72 +182,123 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Create a typed matcher
-k := k8s.New(client, scheme)
+cli := /* client.Client */
 
-// Get a resource with Eventually
-Eventually(ctx, k.Get(&corev1.ConfigMap{
+// Get a resource — works with typed and unstructured objects
+Eventually(ctx, k8s.Get(cli, &corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})).Should(
-    jq.Match(`.data.key == "value"`),
-)
+})).Should(jq.Match(`.data.key == "value"`))
 
-// List resources
-Eventually(ctx, k.List(&corev1.ConfigMapList{},
-    client.InNamespace("default"),
-    client.MatchingLabels{"app": "myapp"},
-)).Should(
-    jq.Match(`. | length > 0`),
-)
-
-// Update a resource (Komega-style)
-Eventually(ctx, k.Update(&corev1.ConfigMap{
+// Create a resource
+Eventually(ctx, k8s.Create(cli, &corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-}, func(obj client.Object) {
-    configMap := obj.(*corev1.ConfigMap)
-    configMap.Data["key"] = "new-value"
-})).Should(
-    jq.Match(`.data.key == "new-value"`),
-)
+    Data: map[string]string{"key": "value"},
+})).Should(jq.Match(`.data.key == "value"`))
 
-// Update a status subresource with the typed helper
-Eventually(ctx, k8s.StatusUpdate(k, &corev1.Pod{
+// Update with a typed callback — no casting needed
+Eventually(ctx, k8s.Update(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+}, func(cm *corev1.ConfigMap) {
+    cm.Data["key"] = "new-value"
+})).Should(jq.Match(`.data.key == "new-value"`))
+
+// Update a status subresource
+Eventually(ctx, k8s.StatusUpdate(cli, &corev1.Pod{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-pod",
         Namespace: "default",
     },
 }, func(pod *corev1.Pod) {
     pod.Status.Phase = corev1.PodSucceeded
-})).Should(
-    jq.Match(`.status.phase == "Succeeded"`),
-)
+})).Should(jq.Match(`.status.phase == "Succeeded"`))
+
+// Create or update idempotently
+Eventually(ctx, k8s.Upsert(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+}, func(cm *corev1.ConfigMap) {
+    if cm.Data == nil {
+        cm.Data = map[string]string{}
+    }
+    cm.Data["key"] = "value"
+})).Should(jq.Match(`.data.key == "value"`))
 
 // Delete a resource
-Eventually(ctx, k.Delete(&corev1.ConfigMap{
+Eventually(ctx, k8s.Delete(cli, &corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
 })).Should(Succeed())
 
-// Direct invocation is also supported when needed
-obj, err := k.Get(&corev1.ConfigMap{
+// Check if a resource is absent (tolerates missing CRDs)
+Eventually(ctx, k8s.Absent(cli, &corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
     },
-})(ctx)
-Expect(err).ToNot(HaveOccurred())
-Expect(obj).Should(jq.Match(`.data.key == "value"`))
+})).Should(BeTrue())
 
-// Compose object-based metadata and GVK matchers
-Eventually(ctx, k.Get(&corev1.ConfigMap{
+// Check if a specific resource is not found (HTTP 404 only)
+Eventually(ctx, k8s.NotFound(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+})).Should(BeTrue())
+
+// List resources
+Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
+    client.InNamespace("default"),
+)).Should(WithTransform(k8s.ListItems(), HaveLen(2)))
+
+// Query events — use standard Gomega matchers on the result
+Eventually(ctx, k8s.Events(cli,
+    k8s.InNamespace("default"),
+    k8s.ForObject(corev1.ObjectReference{
+        Kind: "Pod",
+        Name: "my-pod",
+    }),
+)).Should(ContainElement(
+    gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+        "Reason": Equal("Ready"),
+    }),
+))
+
+// Extract .data from ConfigMap, Secret, or unstructured objects
+Expect(configMap).Should(
+    WithTransform(k8s.Data(), HaveKeyWithValue("key", "value")),
+)
+
+// Extract finalizers
+Expect(obj).Should(
+    WithTransform(k8s.Finalizers(), ContainElement("example.com/finalizer")),
+)
+
+// Assert a list is empty
+Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
+    client.InNamespace("default"),
+)).Should(k8s.IsEmptyList())
+
+// Filter events by label selector
+Eventually(ctx, k8s.Events(cli,
+    k8s.InNamespace("default"),
+    k8s.MatchingLabels(client.MatchingLabels{"app": "frontend"}),
+)).Should(HaveLen(1))
+
+// Metadata matchers compose with SatisfyAll
+Eventually(ctx, k8s.Get(cli, &corev1.ConfigMap{
     ObjectMeta: metav1.ObjectMeta{
         Name:      "my-config",
         Namespace: "default",
@@ -258,71 +308,26 @@ Eventually(ctx, k.Get(&corev1.ConfigMap{
     k8s.HasNamespace("default"),
     k8s.HasLabel("app", "myapp"),
     k8s.HasAnnotation("managed-by", "operator"),
-    k8s.MatchesGroupVersion(schema.GroupVersion{Version: "v1"}),
-    k8s.MatchesGroupVersionKind(schema.GroupVersionKind{
-        Version: "v1",
-        Kind:    "ConfigMap",
-    }),
 ))
 
-// Work with list and object metadata using standard Gomega matchers
-Eventually(ctx, k.List(&corev1.ConfigMapList{},
-    client.InNamespace("default"),
-)).Should(WithTransform(
-    k8s.ListItems(),
-    HaveLen(2),
-))
-
-Eventually(ctx, k.Get(&corev1.Pod{
-    ObjectMeta: metav1.ObjectMeta{
-        Name:      "my-pod",
-        Namespace: "default",
-    },
-})).Should(SatisfyAll(
+// Deletion and finalizer matchers
+Expect(pod).Should(SatisfyAll(
     k8s.IsDeleting(),
     k8s.HasFinalizer("example.com/finalizer"),
 ))
-```
 
-### Unstructured API
+// Owner reference matchers
+Expect(child).Should(k8s.HasOwnerReference(owner))
+Expect(child).Should(k8s.IsControlledBy(owner))
 
-The unstructured API works with GVK and returns functions compatible with `Eventually()`:
-
-```go
-import (
-    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-    "k8s.io/apimachinery/pkg/runtime/schema"
-)
-
-// Create an unstructured matcher
-k := k8s.NewUnstructured(client)
-
-podGVK := schema.GroupVersionKind{Version: "v1", Kind: "Pod"}
-
-// Get with Eventually
-Eventually(ctx, k.Get(podGVK, k8s.Named("my-pod").InNamespace("default"))).
-    Should(
-        jq.Match(`.status.phase == "Running"`),
-    )
-
-// List resources
-Eventually(ctx, k.List(podGVK, client.InNamespace("default"))).
-    Should(
-        jq.Match(`. | length > 0`),
-    )
-
-// Update a status subresource
-Eventually(ctx, k.StatusUpdate(podGVK, k8s.Named("my-pod").InNamespace("default"),
-    func(obj *unstructured.Unstructured) {
-        _ = unstructured.SetNestedField(obj.Object, "Succeeded", "status", "phase")
-    },
-)).Should(
-    jq.Match(`.status.phase == "Succeeded"`),
-)
-
-// Delete a resource
-err := k.Delete(podGVK, k8s.Named("my-pod").InNamespace("default"))(ctx)
-Expect(err).ToNot(HaveOccurred())
+// GVK matchers — work with unstructured objects and real apiserver responses.
+// Note: typed objects from the fake client typically have empty TypeMeta,
+// so these matchers are most useful with unstructured objects in unit tests.
+Expect(obj).Should(k8s.MatchesGroupVersionKind(schema.GroupVersionKind{
+    Group:   "apps",
+    Version: "v1",
+    Kind:    "Deployment",
+}))
 ```
 
 ## Documentation

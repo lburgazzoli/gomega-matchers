@@ -13,8 +13,9 @@ import (
 // Data returns a transform function that extracts the full .data field from
 // supported Kubernetes objects.
 //
-// Supported inputs include typed ConfigMaps, typed Secrets, and
-// *unstructured.Unstructured objects.
+// The supported set is intentionally closed to ConfigMap, Secret, and
+// Unstructured — these are the types where .data has a well-defined
+// meaning. For custom resources, use jq.Extract(`.data`) instead.
 //
 // Example:
 //

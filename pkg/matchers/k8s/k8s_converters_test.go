@@ -3,6 +3,8 @@ package k8s_test
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
@@ -68,6 +70,65 @@ func TestUnstructuredListPtrConverter(t *testing.T) {
 		map[string]any{"apiVersion": "v1", "kind": "Pod"},
 		map[string]any{"apiVersion": "v1", "kind": "Service"},
 	}))
+}
+
+func TestClientObjectConverter(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key": "value",
+		},
+	}
+
+	result, err := jq.Convert(cm)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(BeAssignableToTypeOf(map[string]any{}))
+}
+
+func TestClientObjectConverterWithJQMatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"key": "value",
+		},
+	}
+
+	g.Expect(cm).Should(jq.Match(`.metadata.name == "test-cm"`))
+	g.Expect(cm).Should(jq.Match(`.metadata.namespace == "default"`))
+	g.Expect(cm).Should(jq.Match(`.data.key == "value"`))
+}
+
+func TestClientObjectConverterDoesNotAffectUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": "test",
+			},
+		},
+	}
+
+	result, err := jq.Convert(obj)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(obj.Object))
 }
 
 func TestConvertNormalizesUnstructuredInt64(t *testing.T) {
