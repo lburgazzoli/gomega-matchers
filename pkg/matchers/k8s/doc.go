@@ -118,4 +118,21 @@
 //		k8s.HasLabel("env", "prod"),
 //		k8s.HasAnnotation("team", "platform"),
 //	))
+//
+//	// Extract conditions as []map[string]any for generic assertions
+//	Eventually(ctx, k8s.Get(cli, deploy)).Should(
+//		WithTransform(k8s.Conditions(), ContainElement(
+//			HaveKeyWithValue("type", "Available"),
+//		)),
+//	)
+//
+//	// Extract conditions as a concrete type for typed assertions
+//	Eventually(ctx, k8s.Get(cli, deploy)).Should(
+//		WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainElement(
+//			SatisfyAll(
+//				HaveField("Type", Equal("Available")),
+//				HaveField("Status", Equal(metav1.ConditionTrue)),
+//			),
+//		)),
+//	)
 package k8s
