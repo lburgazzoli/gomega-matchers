@@ -42,6 +42,15 @@ func fetchObject[T client.Object](
 	return result, nil
 }
 
+func lookupObject[T client.Object](
+	ctx context.Context,
+	cli client.Client,
+	obj T,
+	opts ...client.GetOption,
+) error {
+	return cli.Get(ctx, client.ObjectKeyFromObject(obj), obj, opts...)
+}
+
 // Write operations (create, update, upsert) re-fetch the object after the
 // write so the returned value reflects server-side defaults and mutations
 // (e.g. resourceVersion, generation, defaulted fields). This costs one

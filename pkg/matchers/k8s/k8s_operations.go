@@ -21,6 +21,19 @@ func Get[T client.Object](
 	}
 }
 
+// Lookup retrieves a Kubernetes resource into the passed object and returns
+// only an error. The returned function is compatible with Gomega's Eventually()
+// and Expect().
+func Lookup[T client.Object](
+	cli client.Client,
+	obj T,
+	opts ...client.GetOption,
+) func(context.Context) error {
+	return func(ctx context.Context) error {
+		return lookupObject(ctx, cli, obj, opts...)
+	}
+}
+
 // Create creates a Kubernetes resource and returns the created object.
 func Create[T client.Object](
 	cli client.Client,

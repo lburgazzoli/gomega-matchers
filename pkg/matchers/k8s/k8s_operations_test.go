@@ -64,6 +64,58 @@ func newUnstructuredPod() *unstructured.Unstructured {
 
 // --- Get ---
 
+func TestLookupTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+			Labels:    map[string]string{"env": "prod"},
+		},
+		Data: map[string]string{
+			"key1": "value1",
+		},
+	})
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}
+
+	g.Eventually(k8s.Lookup(c, cm)).
+		WithContext(t.Context()).
+		Should(Succeed())
+	g.Expect(cm.Data).To(HaveKeyWithValue("key1", "value1"))
+	g.Expect(cm.Labels).To(HaveKeyWithValue("env", "prod"))
+}
+
+func TestLookupUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+			Labels:    map[string]string{"app": "test"},
+		},
+		Status: corev1.PodStatus{Phase: corev1.PodRunning},
+	})
+
+	obj := newUnstructuredPod()
+
+	g.Eventually(k8s.Lookup(c, obj)).
+		WithContext(t.Context()).
+		Should(Succeed())
+	g.Expect(obj.GetName()).To(Equal("test-pod"))
+	g.Expect(obj.GetNamespace()).To(Equal("default"))
+	g.Expect(obj.GetLabels()).To(HaveKeyWithValue("app", "test"))
+}
+
 func TestGetTyped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

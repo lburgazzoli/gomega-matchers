@@ -31,6 +31,16 @@
 //	Eventually(ctx, k8s.Get(cli, pod)).
 //		Should(jq.Match(`.status.phase == "Running"`))
 //
+//	// Load into an existing object and assert only on the lookup error
+//	cm := &corev1.ConfigMap{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "my-config",
+//			Namespace: "default",
+//		},
+//	}
+//	Eventually(ctx, k8s.Lookup(cli, cm)).Should(Succeed())
+//	Expect(cm.Data).To(HaveKeyWithValue("key", "value"))
+//
 //	// Wait for a resource to be deleted
 //	Eventually(ctx, k8s.Absent(cli, &corev1.ConfigMap{
 //		ObjectMeta: metav1.ObjectMeta{
