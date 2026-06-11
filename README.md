@@ -211,6 +211,30 @@ Eventually(ctx, k8s.Update(cli, &corev1.ConfigMap{
     cm.Data["key"] = "new-value"
 })).Should(jq.Match(`.data.key == "new-value"`))
 
+// Update with a reusable metadata mutator
+Eventually(ctx, k8s.Update(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+}, k8s.SetLabel("env", "prod"))).Should(
+    k8s.HasLabel("env", "prod"),
+)
+
+// Compose multiple metadata mutations
+Eventually(ctx, k8s.Update(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{
+        Name:      "my-config",
+        Namespace: "default",
+    },
+}, k8s.Apply(
+    k8s.SetLabel("env", "prod"),
+    k8s.SetAnnotation("team", "platform"),
+))).Should(SatisfyAll(
+    k8s.HasLabel("env", "prod"),
+    k8s.HasAnnotation("team", "platform"),
+))
+
 // Update a status subresource
 Eventually(ctx, k8s.StatusUpdate(cli, &corev1.Pod{
     ObjectMeta: metav1.ObjectMeta{

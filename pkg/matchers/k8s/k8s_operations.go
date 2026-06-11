@@ -56,16 +56,17 @@ func Delete[T client.Object](
 	}
 }
 
-// Update retrieves a Kubernetes resource, applies a typed update function,
-// and updates it. The callback receives the concrete object type.
-func Update[T client.Object](
+// Update retrieves a Kubernetes resource, applies an update function, and
+// updates it. The callback can be either a typed function receiving the
+// concrete object type or a reusable client.Object mutator.
+func Update[T client.Object, F objectMutator[T]](
 	cli client.Client,
 	obj T,
-	fn func(T),
+	fn F,
 	opts ...client.UpdateOption,
 ) func(context.Context) (T, error) {
 	return func(ctx context.Context) (T, error) {
-		return doUpdate(ctx, cli, obj, fn, opts...)
+		return doUpdate(ctx, cli, obj, adaptMutator[T](fn), opts...)
 	}
 }
 
@@ -82,16 +83,17 @@ func StatusUpdate[T client.Object](
 	}
 }
 
-// Upsert creates a Kubernetes resource when it does not exist and
-// otherwise updates the existing live resource using the provided callback.
-func Upsert[T client.Object](
+// Upsert creates a Kubernetes resource when it does not exist and otherwise
+// updates the existing live resource using the provided callback. The callback
+// can be either a typed function or a reusable client.Object mutator.
+func Upsert[T client.Object, F objectMutator[T]](
 	cli client.Client,
 	obj T,
-	fn func(T),
+	fn F,
 	createOpts ...client.CreateOption,
 ) func(context.Context) (T, error) {
 	return func(ctx context.Context) (T, error) {
-		return doUpsert(ctx, cli, obj, fn, createOpts...)
+		return doUpsert(ctx, cli, obj, adaptMutator[T](fn), createOpts...)
 	}
 }
 

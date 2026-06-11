@@ -397,6 +397,92 @@ func TestUpdateUnstructuredWithJQTransform(t *testing.T) {
 	))
 }
 
+func TestUpdateWithSetLabelTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+			Labels:    map[string]string{"app": "test"},
+		},
+	})
+
+	g.Eventually(k8s.Update(c, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, k8s.SetLabel("env", "prod"))).WithContext(t.Context()).Should(And(
+		k8s.HasLabel("app", "test"),
+		k8s.HasLabel("env", "prod"),
+	))
+}
+
+func TestUpdateWithSetAnnotationTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-config",
+			Namespace:   "default",
+			Annotations: map[string]string{"managed-by": "operator"},
+		},
+	})
+
+	g.Eventually(k8s.Update(c, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, k8s.SetAnnotation("team", "platform"))).WithContext(t.Context()).Should(And(
+		k8s.HasAnnotation("managed-by", "operator"),
+		k8s.HasAnnotation("team", "platform"),
+	))
+}
+
+func TestUpdateWithSetLabelUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+			Labels:    map[string]string{"app": "test"},
+		},
+	})
+
+	g.Eventually(k8s.Update(c, newUnstructuredConfigMap(nil),
+		k8s.SetLabel("env", "prod"),
+	)).WithContext(t.Context()).Should(And(
+		k8s.HasLabel("app", "test"),
+		k8s.HasLabel("env", "prod"),
+	))
+}
+
+func TestUpdateWithSetAnnotationUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-config",
+			Namespace:   "default",
+			Annotations: map[string]string{"managed-by": "operator"},
+		},
+	})
+
+	g.Eventually(k8s.Update(c, newUnstructuredConfigMap(nil),
+		k8s.SetAnnotation("team", "platform"),
+	)).WithContext(t.Context()).Should(And(
+		k8s.HasAnnotation("managed-by", "operator"),
+		k8s.HasAnnotation("team", "platform"),
+	))
+}
+
 // --- StatusUpdate ---
 
 func TestStatusUpdateTyped(t *testing.T) {
@@ -514,6 +600,55 @@ func TestUpsertUpdatesExistingUnstructured(t *testing.T) {
 			data["key"] = "new-value"
 		},
 	)).WithContext(t.Context()).Should(jq.Match(`.data.key == "new-value"`))
+}
+
+func TestUpsertCreatesMissingWithApplyTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient()
+
+	g.Eventually(k8s.Upsert(c, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, k8s.Apply(
+		k8s.SetLabel("env", "prod"),
+		k8s.SetAnnotation("team", "platform"),
+	))).WithContext(t.Context()).Should(And(
+		k8s.HasLabel("env", "prod"),
+		k8s.HasAnnotation("team", "platform"),
+	))
+}
+
+func TestUpsertUpdatesExistingWithApplyTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-config",
+			Namespace:   "default",
+			Labels:      map[string]string{"app": "test"},
+			Annotations: map[string]string{"managed-by": "operator"},
+		},
+	})
+
+	g.Eventually(k8s.Upsert(c, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+	}, k8s.Apply(
+		k8s.SetLabel("env", "prod"),
+		k8s.SetAnnotation("team", "platform"),
+	))).WithContext(t.Context()).Should(And(
+		k8s.HasLabel("app", "test"),
+		k8s.HasLabel("env", "prod"),
+		k8s.HasAnnotation("managed-by", "operator"),
+		k8s.HasAnnotation("team", "platform"),
+	))
 }
 
 // --- Absent / NotFound ---
