@@ -66,16 +66,11 @@ func (m *delegatingFieldMatcher) NegatedFailureMessage(actual any) string {
 
 func (m *delegatingFieldMatcher) delegateFor(actual any) types.GomegaMatcher {
 	if _, ok := actual.(map[string]any); ok {
-		return gomega.HaveKeyWithValue(mapKeyFor(m.field), m.expected)
+		return gomega.HaveKeyWithValue(
+			strings.ToLower(m.field[:1])+m.field[1:],
+			m.expected,
+		)
 	}
 
 	return gomega.HaveField(m.field, gomega.Equal(m.expected))
-}
-
-func mapKeyFor(field string) string {
-	if field == "" {
-		return ""
-	}
-
-	return strings.ToLower(field[:1]) + field[1:]
 }
