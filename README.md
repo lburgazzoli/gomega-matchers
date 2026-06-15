@@ -287,6 +287,20 @@ Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
     client.InNamespace("default"),
 )).Should(WithTransform(k8s.ListItems(), HaveLen(2)))
 
+// Select exactly one typed object via list options
+Eventually(ctx, k8s.Singleton[*corev1.ConfigMap](cli,
+    client.InNamespace("default"),
+    client.MatchingLabels{"app": "frontend"},
+)).Should(HaveField("Data", HaveKeyWithValue("key", "value")))
+
+// Lookup exactly one object and write it into an output value
+selected := &corev1.ConfigMap{}
+Eventually(ctx, k8s.LookupSingleton(cli, selected,
+    client.InNamespace("default"),
+    client.MatchingLabels{"app": "frontend"},
+)).Should(Succeed())
+Expect(selected.Name).To(Equal("frontend-config"))
+
 // Query events — use standard Gomega matchers on the result
 Eventually(ctx, k8s.Events(cli,
     k8s.InNamespace("default"),
@@ -352,6 +366,18 @@ Expect(obj).Should(k8s.MatchesGroupVersionKind(schema.GroupVersionKind{
     Version: "v1",
     Kind:    "Deployment",
 }))
+
+// Condition matchers compose with k8s.Conditions() and k8s.ConditionsOf(...)
+Expect(obj).Should(WithTransform(k8s.Conditions(), ContainElement(
+    condition.Is("Ready", "True"),
+)))
+
+Expect(obj).Should(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainElement(
+    SatisfyAll(
+        condition.Is("Available", metav1.ConditionTrue),
+        condition.HasReason("MinimumReplicasAvailable"),
+    ),
+)))
 ```
 
 ## Documentation

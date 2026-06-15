@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
+	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s/condition"
 
 	. "github.com/onsi/gomega"
 )
@@ -198,6 +199,32 @@ func TestConditionsExtractsFromTypedObjectWithMetav1Condition(t *testing.T) {
 	)))
 }
 
+func TestConditionsComposeWithConditionMatchers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	svc := &corev1.Service{
+		Status: corev1.ServiceStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:    "Ready",
+					Status:  metav1.ConditionTrue,
+					Reason:  "AllGood",
+					Message: "service is ready",
+				},
+			},
+		},
+	}
+
+	g.Expect(svc).To(WithTransform(k8s.Conditions(), ContainElement(
+		SatisfyAll(
+			condition.Is("Ready", "True"),
+			condition.HasReason("AllGood"),
+			condition.HasMessage("service is ready"),
+		),
+	)))
+}
+
 func TestConditionsExtractsFromTypedObjectWithPerKindCondition(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -312,6 +339,32 @@ func TestConditionsOfExtractsTypedMetav1Conditions(t *testing.T) {
 			HaveField("Type", Equal("Ready")),
 			HaveField("Status", Equal(metav1.ConditionTrue)),
 			HaveField("Reason", Equal("AllGood")),
+		),
+	)))
+}
+
+func TestConditionsOfComposeWithConditionMatchers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	svc := &corev1.Service{
+		Status: corev1.ServiceStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:    "Ready",
+					Status:  metav1.ConditionTrue,
+					Reason:  "AllGood",
+					Message: "service is ready",
+				},
+			},
+		},
+	}
+
+	g.Expect(svc).To(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainElement(
+		SatisfyAll(
+			condition.Is("Ready", metav1.ConditionTrue),
+			condition.HasReason("AllGood"),
+			condition.HasMessage("service is ready"),
 		),
 	)))
 }

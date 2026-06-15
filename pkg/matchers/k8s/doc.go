@@ -10,6 +10,7 @@
 //		. "github.com/onsi/gomega"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
 //		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
+//		"github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s/condition"
 //		"sigs.k8s.io/controller-runtime/pkg/client"
 //	)
 //
@@ -53,6 +54,20 @@
 //	Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
 //		client.InNamespace("default"),
 //	)).Should(WithTransform(k8s.ListItems(), HaveLen(2)))
+//
+//	// Select exactly one typed object via list options
+//	Eventually(ctx, k8s.Singleton[*corev1.ConfigMap](cli,
+//		client.InNamespace("default"),
+//		client.MatchingLabels{"app": "frontend"},
+//	)).Should(HaveField("Data", HaveKeyWithValue("key", "value")))
+//
+//	// Lookup exactly one object and write it into an output value
+//	selected := &corev1.ConfigMap{}
+//	Eventually(ctx, k8s.LookupSingleton(cli, selected,
+//		client.InNamespace("default"),
+//		client.MatchingLabels{"app": "frontend"},
+//	)).Should(Succeed())
+//	Expect(selected.Name).To(Equal("frontend-config"))
 //
 //	// Create a typed object and assert on it
 //	Eventually(ctx, k8s.Create(cli, &corev1.ConfigMap{
@@ -156,7 +171,7 @@
 //	// Extract conditions as []map[string]any for generic assertions
 //	Eventually(ctx, k8s.Get(cli, deploy)).Should(
 //		WithTransform(k8s.Conditions(), ContainElement(
-//			HaveKeyWithValue("type", "Available"),
+//			condition.Is("Available", "True"),
 //		)),
 //	)
 //
@@ -164,8 +179,8 @@
 //	Eventually(ctx, k8s.Get(cli, deploy)).Should(
 //		WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainElement(
 //			SatisfyAll(
-//				HaveField("Type", Equal("Available")),
-//				HaveField("Status", Equal(metav1.ConditionTrue)),
+//				condition.Is("Available", metav1.ConditionTrue),
+//				condition.HasReason("MinimumReplicasAvailable"),
 //			),
 //		)),
 //	)

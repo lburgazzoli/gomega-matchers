@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -821,4 +822,174 @@ func TestListUnstructuredWithLabelSelector(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Items).To(HaveLen(1))
 	g.Expect(result.Items[0].GetName()).To(Equal("pod-1"))
+}
+
+func TestSingletonTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "config-1",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "frontend"},
+			},
+			Data: map[string]string{"key": "value-1"},
+		},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "config-2",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "backend"},
+			},
+		},
+	)
+
+	result, err := k8s.Singleton[*corev1.ConfigMap](
+		c,
+		client.InNamespace("default"),
+		client.MatchingLabels{"app": "frontend"},
+	)(t.Context())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.GetName()).To(Equal("config-1"))
+	g.Expect(result.Data).To(HaveKeyWithValue("key", "value-1"))
+}
+
+func TestSingletonTypedNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient()
+
+	_, err := k8s.Singleton[*corev1.ConfigMap](
+		c,
+		client.InNamespace("default"),
+	)(t.Context())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+}
+
+func TestSingletonTypedStopsOnMultipleMatches(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "config-1", Namespace: "default"}},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "config-2", Namespace: "default"}},
+	)
+
+	_, err := k8s.Singleton[*corev1.ConfigMap](
+		c,
+		client.InNamespace("default"),
+	)(t.Context())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("expected exactly one matching resource"))
+}
+
+func TestLookupSingletonTyped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "config-1",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "frontend"},
+			},
+			Data: map[string]string{"key": "value-1"},
+		},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "config-2",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "backend"},
+			},
+		},
+	)
+
+	cm := &corev1.ConfigMap{}
+
+	g.Eventually(k8s.LookupSingleton(
+		c,
+		cm,
+		client.InNamespace("default"),
+		client.MatchingLabels{"app": "frontend"},
+	)).
+		WithContext(t.Context()).
+		Should(Succeed())
+	g.Expect(cm.GetName()).To(Equal("config-1"))
+	g.Expect(cm.GetNamespace()).To(Equal("default"))
+	g.Expect(cm.Data).To(HaveKeyWithValue("key", "value-1"))
+}
+
+func TestLookupSingletonTypedNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient()
+	cm := &corev1.ConfigMap{}
+
+	err := k8s.LookupSingleton(
+		c,
+		cm,
+		client.InNamespace("default"),
+	)(t.Context())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+}
+
+func TestLookupSingletonTypedStopsOnMultipleMatches(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "config-1", Namespace: "default"}},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "config-2", Namespace: "default"}},
+	)
+	cm := &corev1.ConfigMap{}
+
+	err := k8s.LookupSingleton(
+		c,
+		cm,
+		client.InNamespace("default"),
+	)(t.Context())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("expected exactly one matching resource"))
+}
+
+func TestLookupSingletonUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pod-1",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "frontend"},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodRunning},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pod-2",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "backend"},
+			},
+		},
+	)
+	obj := newUnstructuredPod()
+
+	g.Eventually(k8s.LookupSingleton(
+		c,
+		obj,
+		client.InNamespace("default"),
+		client.MatchingLabels{"app": "frontend"},
+	)).
+		WithContext(t.Context()).
+		Should(Succeed())
+	g.Expect(obj.GetName()).To(Equal("pod-1"))
+	g.Expect(obj.GetLabels()).To(HaveKeyWithValue("app", "frontend"))
 }

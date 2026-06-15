@@ -34,6 +34,45 @@ func Lookup[T client.Object](
 	}
 }
 
+// Singleton lists Kubernetes resources and returns the single matching object
+// as the requested concrete type.
+//
+// Returns a Kubernetes NotFound error when no resources match, so Eventually()
+// can keep retrying, and StopTrying when more than one resource matches.
+func Singleton[T client.Object](
+	cli client.Client,
+	opts ...client.ListOption,
+) func(context.Context) (T, error) {
+	return func(ctx context.Context) (T, error) {
+		obj, err := newObject[T]()
+		if err != nil {
+			return zero[T](), gomega.StopTrying("failed to allocate singleton object").Wrap(err)
+		}
+
+		return singletonObject(ctx, cli, obj, opts...)
+	}
+}
+
+// LookupSingleton lists Kubernetes resources, expects exactly one match, and
+// writes the selected object into the passed output object.
+//
+// Returns a Kubernetes NotFound error when no resources match, so Eventually()
+// can keep retrying, and StopTrying when more than one resource matches.
+func LookupSingleton[T client.Object](
+	cli client.Client,
+	obj T,
+	opts ...client.ListOption,
+) func(context.Context) error {
+	return func(ctx context.Context) error {
+		result, err := singletonObject(ctx, cli, obj, opts...)
+		if err != nil {
+			return err
+		}
+
+		return copyObjectInto(obj, result)
+	}
+}
+
 // Create creates a Kubernetes resource and returns the created object.
 func Create[T client.Object](
 	cli client.Client,
