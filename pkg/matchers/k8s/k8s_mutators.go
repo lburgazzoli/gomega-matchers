@@ -1,6 +1,10 @@
 package k8s
 
-import "sigs.k8s.io/controller-runtime/pkg/client"
+import (
+	"maps"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 type objectMutator[T client.Object] interface {
 	~func(T) | ~func(client.Object)
@@ -13,6 +17,8 @@ func adaptMutator[T client.Object, F objectMutator[T]](fn F) func(T) {
 			typed(obj)
 		case func(client.Object):
 			typed(obj)
+		default:
+			panic("unsupported object mutator")
 		}
 	}
 }
@@ -50,9 +56,7 @@ func copyStringMap(input map[string]string) map[string]string {
 	}
 
 	out := make(map[string]string, len(input))
-	for key, value := range input {
-		out[key] = value
-	}
+	maps.Copy(out, input)
 
 	return out
 }
