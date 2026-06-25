@@ -6,6 +6,19 @@ updates:
       interval: daily
       time: "19:30"
       timezone: Europe/Paris
+    groups:
+      actions:
+        patterns:
+          - "actions/*"
+      github:
+        patterns:
+          - "github/*"
+      ossf:
+        patterns:
+          - "ossf/*"
+      step-security:
+        patterns:
+          - "step-security/*"
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
