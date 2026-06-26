@@ -169,6 +169,27 @@ func Containers() func(any) (any, error) {
 	return extractContainers
 }
 
+// Container returns a transform function that extracts a named container as
+// corev1.Container.
+//
+// Supported inputs are the same as Containers().
+//
+// Returns an error when the container is not found.
+//
+// Example:
+//
+//	WithTransform(k8s.Container("app"), HaveField("Image", Equal("example/app:latest")))
+func Container(name string) func(any) (any, error) {
+	return func(in any) (any, error) {
+		items, err := extractContainers(in)
+		if err != nil {
+			return nil, err
+		}
+
+		return namedContainer(items, name)
+	}
+}
+
 // EnvVars returns a transform function that extracts container environment
 // variables as []corev1.EnvVar.
 //
@@ -182,6 +203,27 @@ func Containers() func(any) (any, error) {
 //	WithTransform(k8s.EnvVars(), ContainElement(HaveField("Name", Equal("FOO"))))
 func EnvVars() func(any) (any, error) {
 	return extractEnvVars
+}
+
+// EnvVar returns a transform function that extracts a named environment
+// variable as corev1.EnvVar.
+//
+// Supported inputs are the same as EnvVars().
+//
+// Returns an error when the env var is not found.
+//
+// Example:
+//
+//	WithTransform(k8s.EnvVar("LOG_LEVEL"), HaveField("Value", Equal("debug")))
+func EnvVar(name string) func(any) (any, error) {
+	return func(in any) (any, error) {
+		items, err := extractEnvVars(in)
+		if err != nil {
+			return nil, err
+		}
+
+		return namedEnvVar(items, name)
+	}
 }
 
 func convertConditions[T any](raw any) (any, error) {
@@ -257,6 +299,17 @@ func extractContainers(in any) (any, error) {
 }
 
 func extractEnvVars(in any) (any, error) {
+	switch obj := in.(type) {
+	case *corev1.Container:
+		return obj.Env, nil
+	case corev1.Container:
+		return obj.Env, nil
+	case *corev1.EnvVar:
+		return []corev1.EnvVar{*obj}, nil
+	case corev1.EnvVar:
+		return []corev1.EnvVar{obj}, nil
+	}
+
 	m, err := toMap(in)
 	if err != nil {
 		return nil, err
@@ -346,6 +399,60 @@ func convertValue[T any](raw any, what string) (T, error) {
 	}
 
 	return result, nil
+}
+
+func namedContainer(items any, name string) (any, error) {
+	if items == nil {
+		return nil, notFoundError("container", name)
+	}
+
+	containers, ok := items.([]corev1.Container)
+	if !ok {
+		return nil, unexpectedCollectionType("container", items)
+	}
+
+	return firstContainerNamed(containers, name)
+}
+
+func namedEnvVar(items any, name string) (any, error) {
+	if items == nil {
+		return nil, notFoundError("env var", name)
+	}
+
+	envVars, ok := items.([]corev1.EnvVar)
+	if !ok {
+		return nil, unexpectedCollectionType("env var", items)
+	}
+
+	return firstEnvVarNamed(envVars, name)
+}
+
+func firstContainerNamed(items []corev1.Container, name string) (any, error) {
+	for _, item := range items {
+		if item.Name == name {
+			return item, nil
+		}
+	}
+
+	return nil, notFoundError("container", name)
+}
+
+func firstEnvVarNamed(items []corev1.EnvVar, name string) (any, error) {
+	for _, item := range items {
+		if item.Name == name {
+			return item, nil
+		}
+	}
+
+	return nil, notFoundError("env var", name)
+}
+
+func unexpectedCollectionType(what string, items any) error {
+	return fmt.Errorf("unexpected %s collection type %T", what, items)
+}
+
+func notFoundError(what string, name string) error {
+	return fmt.Errorf("%s %q not found", what, name)
 }
 
 func toUnstructuredMap(in any) (map[string]any, error) {

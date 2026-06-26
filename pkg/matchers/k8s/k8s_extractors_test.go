@@ -586,6 +586,68 @@ func TestContainersExtractFromTypedCronJob(t *testing.T) {
 	)))
 }
 
+func TestContainerExtractsByName(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: "app", Image: "example/app:latest"},
+				{Name: "sidecar", Image: "example/sidecar:latest"},
+			},
+		},
+	}
+
+	g.Expect(pod).To(WithTransform(k8s.Container("sidecar"), SatisfyAll(
+		HaveField("Name", Equal("sidecar")),
+		HaveField("Image", Equal("example/sidecar:latest")),
+	)))
+}
+
+func TestContainerExtractsByNameFromUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata":   map[string]any{"name": "test"},
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{"name": "app", "image": "example/app:latest"},
+							map[string]any{"name": "sidecar", "image": "example/sidecar:latest"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(obj).To(WithTransform(k8s.Container("sidecar"), SatisfyAll(
+		HaveField("Name", Equal("sidecar")),
+		HaveField("Image", Equal("example/sidecar:latest")),
+	)))
+}
+
+func TestContainerReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "app"}},
+		},
+	}
+
+	_, err := k8s.Container("missing")(pod)
+
+	g.Expect(err).To(MatchError(`container "missing" not found`))
+}
+
 func TestEnvVarsExtractFromTypedContainer(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -601,6 +663,24 @@ func TestEnvVarsExtractFromTypedContainer(t *testing.T) {
 		HaveField("Name", Equal("LOG_LEVEL")),
 		HaveField("Value", Equal("debug")),
 	))))
+}
+
+func TestEnvVarExtractsByName(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := corev1.Container{
+		Name: "app",
+		Env: []corev1.EnvVar{
+			{Name: "LOG_LEVEL", Value: "debug"},
+			{Name: "MODE", Value: "prod"},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.EnvVar("MODE"), SatisfyAll(
+		HaveField("Name", Equal("MODE")),
+		HaveField("Value", Equal("prod")),
+	)))
 }
 
 func TestEnvVarsExtractFromUnstructuredContainer(t *testing.T) {
@@ -621,6 +701,38 @@ func TestEnvVarsExtractFromUnstructuredContainer(t *testing.T) {
 		HaveField("Name", Equal("LOG_LEVEL")),
 		HaveField("Value", Equal("debug")),
 	))))
+}
+
+func TestEnvVarExtractsByNameFromUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := map[string]any{
+		"name": "app",
+		"env": []any{
+			map[string]any{"name": "LOG_LEVEL", "value": "debug"},
+			map[string]any{"name": "MODE", "value": "prod"},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.EnvVar("MODE"), SatisfyAll(
+		HaveField("Name", Equal("MODE")),
+		HaveField("Value", Equal("prod")),
+	)))
+}
+
+func TestEnvVarReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := corev1.Container{
+		Name: "app",
+		Env:  []corev1.EnvVar{{Name: "LOG_LEVEL", Value: "debug"}},
+	}
+
+	_, err := k8s.EnvVar("MODE")(container)
+
+	g.Expect(err).To(MatchError(`env var "MODE" not found`))
 }
 
 func TestContainersReturnsErrorForUnsupportedInput(t *testing.T) {
