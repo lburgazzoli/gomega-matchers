@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -415,4 +416,227 @@ func TestConditionsOfReturnsErrorForUnsupportedInput(t *testing.T) {
 	_, err := k8s.ConditionsOf[metav1.Condition]()(42)
 
 	g.Expect(err).To(MatchError("expected client.Object, got int"))
+}
+
+func TestPodTemplateExtractsFromTypedPodTemplate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	template := &corev1.PodTemplate{
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: "app"},
+				},
+			},
+		},
+	}
+
+	g.Expect(template).To(WithTransform(k8s.PodTemplate(), SatisfyAll(
+		HaveField("Spec.Containers", HaveLen(1)),
+		HaveField("Spec.Containers", ContainElement(HaveField("Name", Equal("app")))),
+	)))
+}
+
+func TestPodTemplateExtractsFromTypedDeployment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deploy := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app"},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(deploy).To(WithTransform(k8s.PodTemplate(), SatisfyAll(
+		HaveField("Spec.Containers", HaveLen(1)),
+		HaveField("Spec.Containers", ContainElement(HaveField("Name", Equal("app")))),
+	)))
+}
+
+func TestPodTemplateExtractsFromTypedCronJob(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cronJob := &batchv1.CronJob{
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "app"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(cronJob).To(WithTransform(k8s.PodTemplate(), SatisfyAll(
+		HaveField("Spec.Containers", HaveLen(1)),
+		HaveField("Spec.Containers", ContainElement(HaveField("Name", Equal("app")))),
+	)))
+}
+
+func TestContainersExtractFromTypedPod(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: "app"},
+			},
+		},
+	}
+
+	g.Expect(pod).To(WithTransform(k8s.Containers(), ContainElement(
+		HaveField("Name", Equal("app")),
+	)))
+}
+
+func TestContainersComposeWithPodTemplate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deploy := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "app",
+							Env: []corev1.EnvVar{
+								{Name: "LOG_LEVEL", Value: "debug"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(deploy).To(WithTransform(k8s.PodTemplate(), WithTransform(k8s.Containers(), ContainElement(
+		SatisfyAll(
+			HaveField("Name", Equal("app")),
+			WithTransform(k8s.EnvVars(), ContainElement(SatisfyAll(
+				HaveField("Name", Equal("LOG_LEVEL")),
+				HaveField("Value", Equal("debug")),
+			))),
+		),
+	))))
+}
+
+func TestContainersExtractFromUnstructuredDeployment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata":   map[string]any{"name": "test"},
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{"name": "app"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(obj).To(WithTransform(k8s.Containers(), ContainElement(
+		HaveField("Name", Equal("app")),
+	)))
+}
+
+func TestContainersExtractFromTypedCronJob(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cronJob := &batchv1.CronJob{
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "app"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(cronJob).To(WithTransform(k8s.Containers(), ContainElement(
+		HaveField("Name", Equal("app")),
+	)))
+}
+
+func TestEnvVarsExtractFromTypedContainer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := corev1.Container{
+		Name: "app",
+		Env: []corev1.EnvVar{
+			{Name: "LOG_LEVEL", Value: "debug"},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.EnvVars(), ContainElement(SatisfyAll(
+		HaveField("Name", Equal("LOG_LEVEL")),
+		HaveField("Value", Equal("debug")),
+	))))
+}
+
+func TestEnvVarsExtractFromUnstructuredContainer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := map[string]any{
+		"name": "app",
+		"env": []any{
+			map[string]any{
+				"name":  "LOG_LEVEL",
+				"value": "debug",
+			},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.EnvVars(), ContainElement(SatisfyAll(
+		HaveField("Name", Equal("LOG_LEVEL")),
+		HaveField("Value", Equal("debug")),
+	))))
+}
+
+func TestContainersReturnsErrorForUnsupportedInput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := k8s.Containers()(42)
+
+	g.Expect(err).To(MatchError("expected struct, pointer to struct, or map[string]any, got int"))
+}
+
+func TestEnvVarsReturnsErrorForUnsupportedInput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := k8s.EnvVars()(42)
+
+	g.Expect(err).To(MatchError("expected struct, pointer to struct, or map[string]any, got int"))
 }
