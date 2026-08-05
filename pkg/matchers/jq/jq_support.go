@@ -20,14 +20,18 @@ func terminalJQError(err error) error {
 	return gomega.StopTrying("jq expression cannot be evaluated").Wrap(err)
 }
 
-// Run executes a compiled JQ query against the provided data and returns the first result.
-// Returns false if the query produces no results, or an error if query execution fails.
-func Run(query *gojq.Query, data any) (any, error) {
-	return runFirstResult(query, data, false)
+// EvalFirst executes a compiled JQ query against the provided data and returns
+// the first result. Returns false if the query produces no results, or an error
+// if query execution fails.
+//
+// Only the first value produced by the query is returned; multi-value
+// expressions (e.g. `.[] | .`) silently discard subsequent results.
+func EvalFirst(query *gojq.Query, data any) (any, error) {
+	return evalFirstOr(query, data, false)
 }
 
-func runRequiredResult(query *gojq.Query, data any, expression string) (any, error) {
-	result, err := runFirstResult(query, data, nil)
+func evalRequired(query *gojq.Query, data any, expression string) (any, error) {
+	result, err := evalFirstOr(query, data, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +43,7 @@ func runRequiredResult(query *gojq.Query, data any, expression string) (any, err
 	return result, nil
 }
 
-func runFirstResult(query *gojq.Query, data any, noResult any) (any, error) {
+func evalFirstOr(query *gojq.Query, data any, noResult any) (any, error) {
 	it := query.Run(data)
 
 	v, ok := it.Next()

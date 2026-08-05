@@ -184,6 +184,11 @@ func SliceConverter(in any) (any, error) {
 // (int64, int32, uint64, etc.) into the types gojq supports: int,
 // float64, and *big.Int. Kubernetes unstructured objects typically
 // store integers as int64, which gojq >= 0.12.18 no longer normalizes.
+//
+// Recursion is limited to map[string]any and []any containers, which is
+// sufficient because all built-in converters (JSON unmarshal, map/slice
+// pass-through) and K8s converters (unstructured .Object, ToUnstructured)
+// produce these types.
 func normalizeForJQ(v any) any {
 	switch v := v.(type) {
 	case map[string]any:

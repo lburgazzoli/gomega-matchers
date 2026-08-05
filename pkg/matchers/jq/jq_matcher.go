@@ -19,7 +19,7 @@ func Match(expression string) types.GomegaMatcher {
 	query, parseErr := parseQuery(expression)
 
 	return &jqMatcher{
-		Expression: expression,
+		expression: expression,
 		query:      query,
 		parseErr:   parseErr,
 	}
@@ -37,7 +37,7 @@ func Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
 var _ types.GomegaMatcher = &jqMatcher{}
 
 type jqMatcher struct {
-	Expression string
+	expression string
 	query      *gojq.Query
 	parseErr   error
 }
@@ -52,7 +52,7 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return false, err
 	}
 
-	v, err := Run(matcher.query, data)
+	v, err := EvalFirst(matcher.query, data)
 	if err != nil {
 		return false, gomega.StopTrying(err.Error())
 	}
@@ -61,17 +61,17 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return match, nil
 	}
 
-	return false, fmt.Errorf("jq expression %q returned %T, expected bool", matcher.Expression, v)
+	return false, gomega.StopTrying(fmt.Sprintf("jq expression %q returned %T, expected bool", matcher.expression, v))
 }
 
 func (matcher *jqMatcher) FailureMessage(actual any) string {
 	a := fmt.Sprintf("%v", actual)
 
-	return format.Message(a, "to match expression", matcher.Expression)
+	return format.Message(a, "to match expression", matcher.expression)
 }
 
 func (matcher *jqMatcher) NegatedFailureMessage(actual any) string {
 	a := fmt.Sprintf("%v", actual)
 
-	return format.Message(a, "not to match expression", matcher.Expression)
+	return format.Message(a, "not to match expression", matcher.expression)
 }

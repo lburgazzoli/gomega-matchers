@@ -42,10 +42,6 @@ linters:
           - goconst
           - mnd
           - revive
-      - path: pkg/resources/gvks/gvks\.go
-        linters:
-          - revive
-          - gochecknoglobals
 
   settings:
     revive:

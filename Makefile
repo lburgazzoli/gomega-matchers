@@ -1,8 +1,6 @@
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 PROJECT_PATH := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
-LOCAL_BIN_PATH := ${PROJECT_PATH}/bin
 
-LINT_GOGC := 10
 LINT_TIMEOUT := 10m
 
 ## Tools
