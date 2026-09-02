@@ -116,8 +116,9 @@ Gomega's `Eventually`:
   `func(client.Object)` mutator.
 - `Upsert` updates an existing object and creates only when the initial fetch
   returns a Kubernetes NotFound error.
-- `List` returns a copied list object, while `Events` returns a plain slice of
-  typed events for use with standard Gomega collection matchers.
+- `List` returns a copied list object. `Events` returns a plain slice of typed
+  `events.k8s.io/v1` events, while `CoreEvents` provides the legacy `core/v1`
+  representation; both work with standard Gomega collection matchers.
 
 `Singleton` and `LookupSingleton` list objects and require exactly one match.
 No matches produce a NotFound error, which is retryable by `Eventually`; more

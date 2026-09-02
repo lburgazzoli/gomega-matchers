@@ -13,7 +13,7 @@ type EventOption interface {
 
 type eventOptions struct {
 	listOptions []client.ListOption
-	filters     []func(*corev1.Event) bool
+	filters     []func(corev1.ObjectReference) bool
 }
 
 type eventOptionFunc func(*eventOptions)
@@ -36,12 +36,12 @@ func MatchingLabels(labels client.MatchingLabels) EventOption {
 	})
 }
 
-// ForObject filters events whose involved object matches the non-empty fields
-// from the provided object reference.
+// ForObject filters events whose regarding or involved object matches the
+// non-empty fields from the provided object reference.
 func ForObject(ref corev1.ObjectReference) EventOption {
 	return eventOptionFunc(func(opts *eventOptions) {
-		opts.filters = append(opts.filters, func(event *corev1.Event) bool {
-			return matchesObjectReference(ref, event.InvolvedObject)
+		opts.filters = append(opts.filters, func(actual corev1.ObjectReference) bool {
+			return matchesObjectReference(ref, actual)
 		})
 	})
 }
@@ -59,25 +59,28 @@ func resolveEventOptions(opts ...EventOption) eventOptions {
 	return resolved
 }
 
-func (opts eventOptions) filter(events []corev1.Event) []corev1.Event {
+func filterEvents[T any](
+	events []T,
+	reference func(T) corev1.ObjectReference,
+	opts eventOptions,
+) []T {
 	if len(opts.filters) == 0 {
 		return events
 	}
 
-	filtered := make([]corev1.Event, 0, len(events))
+	filtered := make([]T, 0, len(events))
 	for i := range events {
-		event := &events[i]
-		if opts.matches(event) {
-			filtered = append(filtered, *event)
+		if opts.matches(reference(events[i])) {
+			filtered = append(filtered, events[i])
 		}
 	}
 
 	return filtered
 }
 
-func (opts eventOptions) matches(event *corev1.Event) bool {
+func (opts eventOptions) matches(reference corev1.ObjectReference) bool {
 	for _, filter := range opts.filters {
-		if !filter(event) {
+		if !filter(reference) {
 			return false
 		}
 	}

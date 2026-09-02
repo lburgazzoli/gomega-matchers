@@ -143,7 +143,8 @@
 //		},
 //	})).Should(Succeed())
 //
-//	// Query events
+//	// Query events. Events uses events.k8s.io/v1; use CoreEvents for legacy
+//	// core/v1 events.
 //	Eventually(ctx, k8s.Events(cli,
 //		k8s.InNamespace("default"),
 //		k8s.ForObject(corev1.ObjectReference{

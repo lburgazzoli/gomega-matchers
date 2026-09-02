@@ -312,7 +312,8 @@ Eventually(ctx, k8s.LookupSingleton(cli, selected,
 )).Should(Succeed())
 Expect(selected.Name).To(Equal("frontend-config"))
 
-// Query events — use standard Gomega matchers on the result
+// Query events — use standard Gomega matchers on the result.
+// Events uses events.k8s.io/v1. Use CoreEvents for legacy core/v1 events.
 Eventually(ctx, k8s.Events(cli,
     k8s.InNamespace("default"),
     k8s.ForObject(corev1.ObjectReference{

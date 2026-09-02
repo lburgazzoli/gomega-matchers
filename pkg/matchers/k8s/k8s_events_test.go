@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -19,7 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestEvents(t *testing.T) {
+func TestCoreEvents(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -47,7 +48,7 @@ func TestEvents(t *testing.T) {
 		},
 	)
 
-	g.Eventually(k8s.Events(c, k8s.InNamespace("default"))).
+	g.Eventually(k8s.CoreEvents(c, k8s.InNamespace("default"))).
 		WithContext(t.Context()).
 		Should(HaveLen(2))
 }
@@ -67,7 +68,7 @@ func TestEventsWithMatchingLabels(t *testing.T) {
 		},
 	)
 
-	g.Eventually(k8s.Events(c,
+	g.Eventually(k8s.CoreEvents(c,
 		k8s.InNamespace("default"),
 		k8s.MatchingLabels(client.MatchingLabels{"app": "frontend"}),
 	)).
@@ -98,7 +99,7 @@ func TestEventsForObject(t *testing.T) {
 		},
 	)
 
-	g.Eventually(k8s.Events(c,
+	g.Eventually(k8s.CoreEvents(c,
 		k8s.InNamespace("default"),
 		k8s.ForObject(corev1.ObjectReference{
 			Kind: "Workbench", Name: "module-a", Namespace: "default",
@@ -122,7 +123,7 @@ func TestEventsContainElement(t *testing.T) {
 		},
 	})
 
-	g.Eventually(k8s.Events(c,
+	g.Eventually(k8s.CoreEvents(c,
 		k8s.InNamespace("default"),
 		k8s.ForObject(corev1.ObjectReference{
 			Kind: "Workbench", Name: "module-a", Namespace: "default",
@@ -146,7 +147,7 @@ func TestEventsDoNotContainElement(t *testing.T) {
 		},
 	})
 
-	g.Eventually(k8s.Events(c, k8s.InNamespace("default"))).
+	g.Eventually(k8s.CoreEvents(c, k8s.InNamespace("default"))).
 		WithContext(t.Context()).
 		Should(Not(ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
 			"Reason": Equal("Ready"),
@@ -175,6 +176,59 @@ func TestEventsListError(t *testing.T) {
 		},
 	)
 
-	_, err := k8s.Events(c)(t.Context())
+	_, err := k8s.CoreEvents(c)(t.Context())
 	g.Expect(err).To(MatchError(expectedErr))
+}
+
+func TestEvents(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient(
+		&eventsv1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "event-1",
+				Namespace: "default",
+				Labels:    map[string]string{"app": "frontend"},
+			},
+			Type:                "Normal",
+			Reason:              "Ready",
+			Action:              "Reconcile",
+			Note:                "resource is ready",
+			ReportingController: "example.test/controller",
+			ReportingInstance:   "controller-1",
+			Regarding: corev1.ObjectReference{
+				Kind:      "Workbench",
+				Name:      "module-a",
+				Namespace: "default",
+			},
+		},
+		&eventsv1.Event{
+			ObjectMeta: metav1.ObjectMeta{Name: "event-2", Namespace: "default"},
+			Type:       "Normal",
+			Reason:     "Created",
+			Action:     "Reconcile",
+			Note:       "resource was created",
+			Regarding: corev1.ObjectReference{
+				Kind:      "Workbench",
+				Name:      "module-b",
+				Namespace: "default",
+			},
+		},
+	)
+
+	g.Eventually(k8s.Events(c,
+		k8s.InNamespace("default"),
+		k8s.MatchingLabels(client.MatchingLabels{"app": "frontend"}),
+		k8s.ForObject(corev1.ObjectReference{
+			Kind:      "Workbench",
+			Name:      "module-a",
+			Namespace: "default",
+		}),
+	)).
+		WithContext(t.Context()).
+		Should(ContainElement(gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+			"Reason": Equal("Ready"),
+			"Note":   Equal("resource is ready"),
+		})))
 }

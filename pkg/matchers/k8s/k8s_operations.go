@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 )
 
 // Get retrieves a Kubernetes resource and returns it as the same concrete type.
@@ -202,9 +203,29 @@ func List[T client.ObjectList](
 	}
 }
 
-// Events lists typed Kubernetes events and returns them as a plain slice so
-// callers can use standard Gomega collection matchers directly.
+// Events lists events.k8s.io/v1 Kubernetes events and returns them as a plain
+// slice so callers can use standard Gomega collection matchers directly.
 func Events(
+	cli client.Client,
+	opts ...EventOption,
+) func(context.Context) ([]eventsv1.Event, error) {
+	return func(ctx context.Context) ([]eventsv1.Event, error) {
+		resolved := resolveEventOptions(opts...)
+		events := &eventsv1.EventList{}
+
+		if err := cli.List(ctx, events, resolved.listOptions...); err != nil {
+			return nil, err
+		}
+
+		return filterEvents(events.Items, func(event eventsv1.Event) corev1.ObjectReference {
+			return event.Regarding
+		}, resolved), nil
+	}
+}
+
+// CoreEvents lists legacy core/v1 Kubernetes events and returns them as a
+// plain slice so callers can use standard Gomega collection matchers directly.
+func CoreEvents(
 	cli client.Client,
 	opts ...EventOption,
 ) func(context.Context) ([]corev1.Event, error) {
@@ -216,6 +237,8 @@ func Events(
 			return nil, err
 		}
 
-		return resolved.filter(events.Items), nil
+		return filterEvents(events.Items, func(event corev1.Event) corev1.ObjectReference {
+			return event.InvolvedObject
+		}, resolved), nil
 	}
 }
