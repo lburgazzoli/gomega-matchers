@@ -575,6 +575,38 @@ func TestConvertNormalizesInt64InMap(t *testing.T) {
 	g.Expect(nested["replicas"]).Should(Equal(5))
 }
 
+func TestConvertDoesNotMutateInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := map[string]any{
+		"generation": int64(3),
+		"nested": map[string]any{
+			"replicas": int64(5),
+		},
+		"items": []any{int64(7)},
+	}
+
+	result, err := jq.Convert(input)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{
+		"generation": 3,
+		"nested": map[string]any{
+			"replicas": 5,
+		},
+		"items": []any{7},
+	}))
+	g.Expect(input).Should(Equal(map[string]any{
+		"generation": int64(3),
+		"nested": map[string]any{
+			"replicas": int64(5),
+		},
+		"items": []any{int64(7)},
+	}))
+}
+
 func TestConvertNormalizesInt64InSlice(t *testing.T) {
 	t.Parallel()
 

@@ -211,17 +211,19 @@ func SliceConverter(in any) (any, error) {
 func normalizeForJQ(v any) any {
 	switch v := v.(type) {
 	case map[string]any:
+		result := make(map[string]any, len(v))
 		for k, val := range v {
-			v[k] = normalizeForJQ(val)
+			result[k] = normalizeForJQ(val)
 		}
 
-		return v
+		return result
 	case []any:
+		result := make([]any, len(v))
 		for i, val := range v {
-			v[i] = normalizeForJQ(val)
+			result[i] = normalizeForJQ(val)
 		}
 
-		return v
+		return result
 	default:
 		return normalizeNumeric(v)
 	}
