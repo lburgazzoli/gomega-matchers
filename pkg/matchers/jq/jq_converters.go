@@ -101,22 +101,22 @@ func (j *Instance) Convert(in any) (any, error) {
 // Returns an error if the input is not valid JSON or is a JSON primitive.
 func UnmarshalJSON(in []byte) (any, error) {
 	if len(in) == 0 {
-		return nil, errors.New("a valid Json document is expected")
+		return nil, errors.New("a valid JSON document is expected")
 	}
 
 	var result any
 	if err := json.Unmarshal(in, &result); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal result, %w", err)
+		return nil, fmt.Errorf("unable to unmarshal JSON document: %w", err)
 	}
 
 	if result == nil {
-		return nil, errors.New("a Json Array or Object is required")
+		return nil, errors.New("a JSON array or object is required")
 	}
 
 	kind := reflect.TypeOf(result).Kind()
 
 	if kind != reflect.Map && kind != reflect.Slice {
-		return nil, errors.New("a Json Array or Object is required")
+		return nil, errors.New("a JSON array or object is required")
 	}
 
 	return result, nil

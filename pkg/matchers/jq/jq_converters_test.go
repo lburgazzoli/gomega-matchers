@@ -158,32 +158,32 @@ func TestUnmarshalJSONErrors(t *testing.T) {
 		{
 			name:          "empty byte slice",
 			input:         []byte{},
-			expectedError: "a valid Json document is expected",
+			expectedError: "a valid JSON document is expected",
 		},
 		{
 			name:          "malformed JSON",
 			input:         []byte(`{"foo": invalid}`),
-			expectedError: "unable to unmarshal result",
+			expectedError: "unable to unmarshal JSON document",
 		},
 		{
 			name:          "JSON string primitive",
 			input:         []byte(`"just a string"`),
-			expectedError: "a Json Array or Object is required",
+			expectedError: "a JSON array or object is required",
 		},
 		{
 			name:          "JSON number primitive",
 			input:         []byte(`42`),
-			expectedError: "a Json Array or Object is required",
+			expectedError: "a JSON array or object is required",
 		},
 		{
 			name:          "JSON boolean primitive",
 			input:         []byte(`true`),
-			expectedError: "a Json Array or Object is required",
+			expectedError: "a JSON array or object is required",
 		},
 		{
 			name:          "JSON null primitive",
 			input:         []byte(`null`),
-			expectedError: "a Json Array or Object is required",
+			expectedError: "a JSON array or object is required",
 		},
 	}
 
