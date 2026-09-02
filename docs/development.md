@@ -144,6 +144,8 @@ verification commands that were run.
 
 ## Documentation maintenance
 
-When moving or renaming documentation, update links in the same change. The
-documentation map is maintained in [docs/README.md](README.md), and agent
-workflow guidance is kept separately in [AGENTS.md](../AGENTS.md).
+When moving or renaming documentation, update links in the same change. Keep
+contributor workflow in this guide, implementation context in
+[architecture.md](architecture.md), user-facing examples in
+[README.md](../README.md), and agent workflow guidance in
+[AGENTS.md](../AGENTS.md).

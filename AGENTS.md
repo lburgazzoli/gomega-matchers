@@ -15,8 +15,6 @@ for [Gomega](https://onsi.github.io/gomega/). It includes:
 
 - [README.md](README.md) contains installation instructions and usage examples
   for the JQ matchers and Kubernetes helpers.
-- [docs/README.md](docs/README.md) is the documentation index and explains
-  which document to use for each context.
 - [docs/development.md](docs/development.md) contains development guidelines,
   testing conventions, dependency workflow, and contribution guidance.
 - [docs/architecture.md](docs/architecture.md) documents package boundaries,

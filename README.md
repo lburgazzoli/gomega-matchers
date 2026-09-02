@@ -382,7 +382,7 @@ Expect(obj).Should(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainEl
 
 ## Documentation
 
-See the [documentation index](docs/README.md) for the right context:
+See the contextual documentation for more detail:
 
 - [Development Guide](docs/development.md) — contribution workflow, testing,
   dependencies, and code quality.
