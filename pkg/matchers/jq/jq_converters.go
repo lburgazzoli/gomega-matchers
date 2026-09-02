@@ -17,6 +17,9 @@ import (
 // When a converter returns this error, the registry will try the next converter.
 var ErrTypeNotSupported = errors.New("type not supported by this converter")
 
+// ErrInvalidConverter indicates that a nil converter was registered.
+var ErrInvalidConverter = errors.New("converter cannot be nil")
+
 // ConverterFunc converts an input value to a JQ-compatible type (map or slice).
 // Returns ErrTypeNotSupported if the input type is not handled by this converter.
 type ConverterFunc func(any) (any, error)
@@ -38,17 +41,22 @@ func New() *Instance {
 }
 
 // RegisterConverter registers a type converter on the default instance.
-func RegisterConverter(converter ConverterFunc) {
-	defaultInstance.RegisterConverter(converter)
+func RegisterConverter(converter ConverterFunc) error {
+	return defaultInstance.RegisterConverter(converter)
 }
 
 // RegisterConverter registers a type converter on the instance.
 // User-registered converters are prepended to the list and checked before built-in converters.
-func (j *Instance) RegisterConverter(converter ConverterFunc) {
-	j.convertersMu.Lock()
-	defer j.convertersMu.Unlock()
+func (j *Instance) RegisterConverter(converter ConverterFunc) error {
+	if converter == nil {
+		return ErrInvalidConverter
+	}
 
+	j.convertersMu.Lock()
 	j.converters = append([]ConverterFunc{converter}, j.converters...)
+	j.convertersMu.Unlock()
+
+	return nil
 }
 
 // ResetConverters restores the default instance to its built-in converters.

@@ -396,6 +396,18 @@ func TestCustomConverterRegistration(t *testing.T) {
 	)
 }
 
+func TestRegisterConverterRejectsNil(t *testing.T) {
+	g := NewWithT(t)
+	resetConvertersForTest(t)
+
+	g.Expect(jq.RegisterConverter(nil)).Should(MatchError(jq.ErrInvalidConverter))
+
+	instance := jq.New()
+	g.Expect(instance.RegisterConverter(nil)).Should(MatchError(jq.ErrInvalidConverter))
+	_, err := instance.Convert(map[string]any{"value": true})
+	g.Expect(err).ShouldNot(HaveOccurred())
+}
+
 func TestCustomConverterPrecedence(t *testing.T) {
 	g := NewWithT(t)
 	resetConvertersForTest(t)
