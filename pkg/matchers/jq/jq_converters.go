@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"sync"
 
 	"github.com/onsi/gomega/format"
@@ -80,7 +81,7 @@ func Convert(in any) (any, error) {
 // Convert converts an input value using the instance's converter registry.
 func (j *Instance) Convert(in any) (any, error) {
 	j.convertersMu.RLock()
-	converters := append([]ConverterFunc(nil), j.converters...)
+	converters := slices.Clone(j.converters)
 	j.convertersMu.RUnlock()
 
 	for _, converter := range converters {
