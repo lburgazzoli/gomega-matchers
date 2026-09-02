@@ -230,6 +230,11 @@ func TestConvert(t *testing.T) {
 			expected: []any{"foo", "bar"},
 		},
 		{
+			name:     "raw message JSON object",
+			input:    json.RawMessage(`{"foo":"bar"}`),
+			expected: map[string]any{"foo": "bar"},
+		},
+		{
 			name:     "map pass-through",
 			input:    map[string]any{"foo": "bar", "num": 42},
 			expected: map[string]any{"foo": "bar", "num": 42},

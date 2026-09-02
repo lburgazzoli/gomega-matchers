@@ -116,11 +116,11 @@ func UnmarshalJSON(in []byte) (any, error) {
 
 func builtinConverters() []ConverterFunc {
 	return []ConverterFunc{
-		SliceConverter,
 		MapConverter,
 		GBytesBufferConverter,
 		RawMessageConverter,
 		ByteSliceConverter,
+		SliceConverter,
 		StringConverter,
 	}
 }
@@ -189,6 +189,10 @@ func SliceConverter(in any) (any, error) {
 	}
 
 	if _, ok := in.([]byte); ok {
+		return nil, ErrTypeNotSupported
+	}
+
+	if _, ok := in.(json.RawMessage); ok {
 		return nil, ErrTypeNotSupported
 	}
 
