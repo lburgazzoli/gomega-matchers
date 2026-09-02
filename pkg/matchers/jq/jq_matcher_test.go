@@ -90,6 +90,22 @@ func TestMatcherParseErrorStopsRetrying(t *testing.T) {
 	assertStopTrying(t, err)
 }
 
+func TestMatcherRequiresExactlyOneResult(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Match(`.[]`).Match(`[true, true]`)
+
+	assertStopTrying(t, err)
+}
+
+func TestMatcherStopsOnNoResult(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Match(`empty`).Match(`{"a": true}`)
+
+	assertStopTrying(t, err)
+}
+
 func TestMatcherWithType(t *testing.T) {
 	t.Parallel()
 

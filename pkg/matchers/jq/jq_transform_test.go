@@ -51,6 +51,25 @@ func TestExtractNoResultReturnsNil(t *testing.T) {
 	g.Expect(value).Should(BeNil())
 }
 
+func TestExtractAllowsExplicitNullResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	value, err := jq.Extract(`if .present then null else empty end`)(`{"present":true}`)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(value).Should(BeNil())
+}
+
+func TestExtractRequiresExactlyOneResult(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Extract(`.[]`)(`[1, 2]`)
+
+	assertStopTrying(t, err)
+}
+
 func TestExtractParseErrorStopsRetrying(t *testing.T) {
 	t.Parallel()
 
@@ -105,6 +124,25 @@ func TestTransformNoResultReturnsError(t *testing.T) {
 
 	g.Expect(err).Should(HaveOccurred())
 	g.Expect(err.Error()).Should(ContainSubstring("produced no result"))
+}
+
+func TestTransformAllowsExplicitNullResult(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := jq.Transform(`if .a then null else empty end`)(`{"a":true}`)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(BeNil())
+}
+
+func TestTransformRequiresExactlyOneResult(t *testing.T) {
+	t.Parallel()
+
+	_, err := jq.Transform(`.[]`)(`[1, 2]`)
+
+	assertStopTrying(t, err)
 }
 
 func TestTransformParseErrorStopsRetrying(t *testing.T) {

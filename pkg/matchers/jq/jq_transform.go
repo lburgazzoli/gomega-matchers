@@ -1,9 +1,11 @@
 package jq
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/itchyny/gojq"
+	"github.com/onsi/gomega"
 )
 
 type resultRunner func(query *gojq.Query, data any) (any, error)
@@ -42,7 +44,12 @@ func Extract(expression string) func(in any) (any, error) {
 // Extract returns a transform function using the instance's converter registry.
 func (j *Instance) Extract(expression string) func(in any) (any, error) {
 	return j.newTransform(expression, func(q *gojq.Query, data any) (any, error) {
-		return evalFirstOr(q, data, nil)
+		result, err := evalOptional(q, data, expression)
+		if errors.Is(err, ErrMultipleResults) {
+			return nil, gomega.StopTrying(err.Error()).Wrap(err)
+		}
+
+		return result, err
 	})
 }
 

@@ -1,11 +1,16 @@
 package jq
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/itchyny/gojq"
 	"github.com/onsi/gomega"
 )
+
+// ErrMultipleResults indicates that an expression returned more than one result
+// where exactly one result was required.
+var ErrMultipleResults = errors.New("jq expression produced multiple results")
 
 func parseQuery(expression string) (*gojq.Query, error) {
 	query, err := gojq.Parse(expression)
@@ -31,16 +36,26 @@ func EvalFirst(query *gojq.Query, data any) (any, error) {
 }
 
 func evalRequired(query *gojq.Query, data any, expression string) (any, error) {
-	result, err := evalFirstOr(query, data, nil)
+	result, found, err := evalExactlyOne(query, data, expression)
 	if err != nil {
+		if errors.Is(err, ErrMultipleResults) {
+			return nil, gomega.StopTrying(err.Error()).Wrap(err)
+		}
+
 		return nil, err
 	}
 
-	if result == nil {
+	if !found {
 		return nil, fmt.Errorf("jq transform %q produced no result", expression)
 	}
 
 	return result, nil
+}
+
+func evalOptional(query *gojq.Query, data any, expression string) (any, error) {
+	result, _, err := evalExactlyOne(query, data, expression)
+
+	return result, err
 }
 
 func evalFirstOr(query *gojq.Query, data any, noResult any) (any, error) {
@@ -56,4 +71,28 @@ func evalFirstOr(query *gojq.Query, data any, noResult any) (any, error) {
 	}
 
 	return v, nil
+}
+
+func evalExactlyOne(query *gojq.Query, data any, expression string) (any, bool, error) {
+	it := query.Run(data)
+
+	v, ok := it.Next()
+	if !ok {
+		return nil, false, nil
+	}
+
+	if err, ok := v.(error); ok {
+		return nil, false, err
+	}
+
+	next, ok := it.Next()
+	if !ok {
+		return v, true, nil
+	}
+
+	if err, ok := next.(error); ok {
+		return nil, false, err
+	}
+
+	return nil, false, fmt.Errorf("jq expression %q produced multiple results: %w", expression, ErrMultipleResults)
 }

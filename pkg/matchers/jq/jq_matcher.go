@@ -65,9 +65,13 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return false, err
 	}
 
-	v, err := EvalFirst(matcher.query, data)
+	v, found, err := evalExactlyOne(matcher.query, data, matcher.expression)
 	if err != nil {
-		return false, gomega.StopTrying(err.Error())
+		return false, gomega.StopTrying(err.Error()).Wrap(err)
+	}
+
+	if !found {
+		return false, gomega.StopTrying(fmt.Sprintf("jq expression %q produced no result", matcher.expression))
 	}
 
 	if match, ok := v.(bool); ok {
