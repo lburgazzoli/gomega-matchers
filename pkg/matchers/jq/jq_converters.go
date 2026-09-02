@@ -60,19 +60,6 @@ func (j *Instance) RegisterConverter(converter ConverterFunc) error {
 	return nil
 }
 
-// ResetConverters restores the default instance to its built-in converters.
-func ResetConverters() {
-	defaultInstance.ResetConverters()
-}
-
-// ResetConverters restores the instance to its built-in converters.
-func (j *Instance) ResetConverters() {
-	j.convertersMu.Lock()
-	defer j.convertersMu.Unlock()
-
-	j.converters = builtinConverters()
-}
-
 // Convert converts an input value using the default instance.
 func Convert(in any) (any, error) {
 	return defaultInstance.Convert(in)

@@ -14,13 +14,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func resetConvertersForTest(t *testing.T) {
-	t.Helper()
-
-	jq.ResetConverters()
-	t.Cleanup(jq.ResetConverters)
-}
-
 func registerConverter(t *testing.T, register func(jq.ConverterFunc) error, converter jq.ConverterFunc) {
 	t.Helper()
 
@@ -359,7 +352,7 @@ func TestConvertInvalidJSON(t *testing.T) {
 
 func TestConvertErrorPropagation(t *testing.T) {
 	g := NewWithT(t)
-	resetConvertersForTest(t)
+	instance := jq.New()
 
 	type ErrorType struct {
 		Value string
@@ -367,7 +360,7 @@ func TestConvertErrorPropagation(t *testing.T) {
 
 	customErr := errors.New("custom conversion error")
 
-	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
+	registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 		_, ok := v.(ErrorType)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -376,7 +369,7 @@ func TestConvertErrorPropagation(t *testing.T) {
 		return nil, customErr
 	})
 
-	_, err := jq.Convert(ErrorType{Value: "test"})
+	_, err := instance.Convert(ErrorType{Value: "test"})
 
 	g.Expect(err).Should(HaveOccurred())
 	g.Expect(errors.Is(err, customErr)).Should(BeTrue())
@@ -384,13 +377,13 @@ func TestConvertErrorPropagation(t *testing.T) {
 
 func TestCustomConverterRegistration(t *testing.T) {
 	g := NewWithT(t)
-	resetConvertersForTest(t)
+	instance := jq.New()
 
 	type CustomType struct {
 		Value string
 	}
 
-	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
+	registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 		ct, ok := v.(CustomType)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -400,13 +393,12 @@ func TestCustomConverterRegistration(t *testing.T) {
 	})
 
 	g.Expect(CustomType{Value: "test"}).Should(
-		jq.Match(`.value == "test"`),
+		instance.Match(`.value == "test"`),
 	)
 }
 
 func TestRegisterConverterRejectsNil(t *testing.T) {
 	g := NewWithT(t)
-	resetConvertersForTest(t)
 
 	g.Expect(jq.RegisterConverter(nil)).Should(MatchError(jq.ErrInvalidConverter))
 
@@ -418,13 +410,13 @@ func TestRegisterConverterRejectsNil(t *testing.T) {
 
 func TestCustomConverterPrecedence(t *testing.T) {
 	g := NewWithT(t)
-	resetConvertersForTest(t)
+	instance := jq.New()
 
 	type CustomString string
 
 	called := false
 
-	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
+	registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 		_, ok := v.(CustomString)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -436,7 +428,7 @@ func TestCustomConverterPrecedence(t *testing.T) {
 	})
 
 	g.Expect(CustomString("some string")).Should(
-		jq.Match(`.custom == "override"`),
+		instance.Match(`.custom == "override"`),
 	)
 
 	g.Expect(called).Should(BeTrue())
@@ -444,14 +436,14 @@ func TestCustomConverterPrecedence(t *testing.T) {
 
 func TestCustomStructConverter(t *testing.T) {
 	g := NewWithT(t)
-	resetConvertersForTest(t)
+	instance := jq.New()
 
 	type Person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}
 
-	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
+	registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 		p, ok := v.(Person)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -471,32 +463,8 @@ func TestCustomStructConverter(t *testing.T) {
 	})
 
 	g.Expect(Person{Name: "Alice", Age: 30}).Should(
-		jq.Match(`.name == "Alice" and .age == 30`),
+		instance.Match(`.name == "Alice" and .age == 30`),
 	)
-}
-
-func TestResetConvertersRestoresBuiltins(t *testing.T) {
-	g := NewWithT(t)
-	resetConvertersForTest(t)
-
-	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
-		s, ok := v.(string)
-		if !ok {
-			return nil, jq.ErrTypeNotSupported
-		}
-
-		return map[string]any{"custom": s}, nil
-	})
-
-	result, err := jq.Convert(`{"foo":"bar"}`)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(map[string]any{"custom": `{"foo":"bar"}`}))
-
-	jq.ResetConverters()
-
-	result, err = jq.Convert(`{"foo":"bar"}`)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
 }
 
 func TestInstancesHaveIndependentConverters(t *testing.T) {

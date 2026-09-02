@@ -73,9 +73,9 @@ input must return `jq.ErrTypeNotSupported`; any other error stops conversion
 immediately. `RegisterConverter` rejects nil converters with
 `jq.ErrInvalidConverter`.
 
-Package-level registration is useful for a suite-wide convention and can be
-restored with `jq.ResetConverters()`. Prefer an isolated `jq.New()` instance
-for tests that need custom converters or parallel execution.
+Package-level registration is useful for a suite-wide convention and persists
+for the process lifetime. Prefer an isolated `jq.New()` instance for tests that
+need custom converters or parallel execution.
 
 ### Query result semantics
 

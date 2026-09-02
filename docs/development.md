@@ -27,6 +27,11 @@ small number of internal tests are reserved for package implementation details.
 - No Kubernetes cluster is required for the test suite. Kubernetes tests use
   controller-runtime's fake client.
 
+Use the standard-library and language features available in the Go version
+declared by `go.mod` when they improve clarity or safety—for example,
+`slices.Clone` with Go 1.26.7. Do not preserve workarounds for older Go
+versions unless compatibility with those versions is an explicit requirement.
+
 Check the local toolchain with:
 
 ```bash
@@ -119,9 +124,9 @@ matcher := instance.Match(`.value == "expected"`)
 ```
 
 Converters should return `jq.ErrTypeNotSupported` for inputs they do not own.
-Registration rejects nil converters. Use `jq.ResetConverters()` only when a
-test deliberately exercises the package-level registry; isolated instances do
-not need cleanup shared with other tests.
+Registration rejects nil converters. Package-level registrations persist for
+the process lifetime; isolated instances do not need shared cleanup and should
+be preferred for tests with custom converter behavior.
 
 Strict JQ operations (`Match`, `Extract`, and `Transform`) require exactly one
 query result. Add tests for no result, one result, explicit `null`, and multiple
