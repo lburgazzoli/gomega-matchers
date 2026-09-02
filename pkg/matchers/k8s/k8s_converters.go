@@ -12,8 +12,13 @@ import (
 
 //nolint:gochecknoinits
 func init() {
-	jq.RegisterConverter(k8sObjectConverter)
-	jq.RegisterConverter(k8sListConverter)
+	if err := jq.RegisterConverter(k8sObjectConverter); err != nil {
+		panic(err)
+	}
+
+	if err := jq.RegisterConverter(k8sListConverter); err != nil {
+		panic(err)
+	}
 }
 
 func k8sListConverter(in any) (any, error) {

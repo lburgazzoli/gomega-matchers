@@ -21,6 +21,14 @@ func resetConvertersForTest(t *testing.T) {
 	t.Cleanup(jq.ResetConverters)
 }
 
+func registerConverter(t *testing.T, register func(jq.ConverterFunc) error, converter jq.ConverterFunc) {
+	t.Helper()
+
+	if err := register(converter); err != nil {
+		t.Fatalf("register converter: %v", err)
+	}
+}
+
 func TestStringConverter(t *testing.T) {
 	t.Parallel()
 
@@ -359,7 +367,7 @@ func TestConvertErrorPropagation(t *testing.T) {
 
 	customErr := errors.New("custom conversion error")
 
-	jq.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
 		_, ok := v.(ErrorType)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -382,7 +390,7 @@ func TestCustomConverterRegistration(t *testing.T) {
 		Value string
 	}
 
-	jq.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
 		ct, ok := v.(CustomType)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -416,7 +424,7 @@ func TestCustomConverterPrecedence(t *testing.T) {
 
 	called := false
 
-	jq.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
 		_, ok := v.(CustomString)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -443,7 +451,7 @@ func TestCustomStructConverter(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
-	jq.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
 		p, ok := v.(Person)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -471,7 +479,7 @@ func TestResetConvertersRestoresBuiltins(t *testing.T) {
 	g := NewWithT(t)
 	resetConvertersForTest(t)
 
-	jq.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, jq.RegisterConverter, func(v any) (any, error) {
 		s, ok := v.(string)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -502,7 +510,7 @@ func TestInstancesHaveIndependentConverters(t *testing.T) {
 		Value string
 	}
 
-	first.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, first.RegisterConverter, func(v any) (any, error) {
 		value, ok := v.(customValue)
 		if !ok {
 			return nil, jq.ErrTypeNotSupported
@@ -531,14 +539,14 @@ func TestConverterCanReconfigureInstance(t *testing.T) {
 
 	type customValue string
 
-	instance.RegisterConverter(func(v any) (any, error) {
+	registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 		if _, ok := v.(customValue); !ok {
 			return nil, jq.ErrTypeNotSupported
 		}
 
 		if !registered {
 			registered = true
-			instance.RegisterConverter(func(v any) (any, error) {
+			registerConverter(t, instance.RegisterConverter, func(v any) (any, error) {
 				value, ok := v.(customValue)
 				if !ok {
 					return nil, jq.ErrTypeNotSupported
