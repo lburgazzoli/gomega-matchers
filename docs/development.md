@@ -82,8 +82,10 @@ func TestMatcher(t *testing.T) {
 When adding or changing behavior, cover both successful and error paths. In
 particular:
 
-- JQ tests should cover conversion, expression parsing, evaluation, and
-  zero-result behavior where relevant.
+- JQ tests should cover conversion, expression parsing, evaluation, result
+  cardinality, and zero-result behavior where relevant. Test explicit `null`
+  separately from no result, and use `ExtractAll`/`TransformAll` for intentional
+  multi-result queries.
 - Kubernetes tests should cover typed and unstructured inputs when the API
   supports both, and should use the fake client for client operations.
 - Eventually-compatible operations should be tested for retryable errors and
@@ -100,6 +102,31 @@ and runs gofmt-related formatters.
 Before committing, run `make lint` and address all issues. If a linter must be
 disabled for a non-obvious case, document the reason next to the exception.
 Prefer a code change over a new suppression.
+
+### JQ instances and converters
+
+The package-level JQ API uses an unexported shared instance. `jq.New()` creates
+an isolated `jq.Instance` with the built-in converters, so prefer it when a test
+or feature needs custom conversion rules without global state:
+
+```go
+instance := jq.New()
+if err := instance.RegisterConverter(myConverter); err != nil {
+	t.Fatal(err)
+}
+
+matcher := instance.Match(`.value == "expected"`)
+```
+
+Converters should return `jq.ErrTypeNotSupported` for inputs they do not own.
+Registration rejects nil converters. Use `jq.ResetConverters()` only when a
+test deliberately exercises the package-level registry; isolated instances do
+not need cleanup shared with other tests.
+
+Strict JQ operations (`Match`, `Extract`, and `Transform`) require exactly one
+query result. Add tests for no result, one result, explicit `null`, and multiple
+results when changing query execution. Use the `All` variants when multiple
+results are part of the intended contract.
 
 ## Dependency changes
 

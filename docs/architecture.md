@@ -47,38 +47,52 @@ semantics and `jq` handles JSON conversion and query evaluation.
 ### Conversion pipeline
 
 `jq.Match`, `jq.Extract`, and `jq.Transform` compile their expression when the
-function is created. On invocation they:
+function or matcher is created. On invocation they:
 
-1. Convert the input through the global converter registry.
+1. Convert the input through the instance's converter registry.
 2. Normalize numeric values into types supported by gojq.
 3. Execute the compiled query.
-4. Return a boolean matcher result or the first transform result.
+4. Enforce the operation's result cardinality and return a boolean matcher
+   result or transform result.
 
 Built-in converters accept JSON strings, byte slices, `json.RawMessage`,
 Gomega byte buffers, maps, and slices. JSON-encoded inputs must contain an
 object or array; JSON primitives and `null` are rejected. Maps and slices are
-passed through and then recursively normalized when they contain
-`map[string]any` or `[]any` values.
+copied and then recursively normalized when they contain `map[string]any` or
+`[]any` values, so conversion does not mutate caller-owned data.
 
 ### Converter registry
 
-The registry is global and protected by a read/write mutex. A registered
-converter is prepended, so user converters run before built-ins. A converter
-that does not handle an input must return `jq.ErrTypeNotSupported`; any other
-error stops conversion immediately.
+The package-level functions use an unexported default `jq.Instance`. Use
+`jq.New()` to create an isolated instance with its own registry, and call
+instance methods when custom conversion behavior must not affect other users.
+Both registries are protected by a read/write mutex; conversion snapshots the
+converter list before invoking user code. A registered converter is prepended,
+so user converters run before built-ins. A converter that does not handle an
+input must return `jq.ErrTypeNotSupported`; any other error stops conversion
+immediately. `RegisterConverter` rejects nil converters with
+`jq.ErrInvalidConverter`.
 
-Because registration is global, tests that register converters must restore the
-registry with `jq.ResetConverters()` in cleanup. Avoid relying on registration
-order across tests.
+Package-level registration is useful for a suite-wide convention and can be
+restored with `jq.ResetConverters()`. Prefer an isolated `jq.New()` instance
+for tests that need custom converters or parallel execution.
 
 ### Query result semantics
 
-- `jq.Match` requires the first query result to be a boolean.
-- `jq.Extract` returns the first result and returns `nil` when the query
-  produces no result.
-- `jq.Transform` returns the first result and reports an error when the query
-  produces no result.
-- Additional results from a multi-result query are intentionally discarded.
+- `jq.Match` requires exactly one boolean result. No result or multiple results
+  is terminal when used with `Eventually`.
+- `jq.Extract` requires exactly one result and returns `nil` without an error
+  when the query produces no result. An explicit JQ `null` is still one valid
+  result.
+- `jq.Transform` requires exactly one result and reports an error when the
+  query produces no result.
+- `jq.ExtractAll` returns every result, including an explicit `null`, and an
+  empty slice when there are no results.
+- `jq.TransformAll` returns every result and reports an error when there are no
+  results.
+- The strict APIs reject multi-result expressions with `jq.ErrMultipleResults`.
+- The formatted helpers interpolate arguments with `fmt.Sprintf`; callers are
+  responsible for quoting dynamic values so the resulting text is valid JQ.
 - Parse and evaluation errors are terminal when used with Gomega's
   `Eventually`, so callers do not waste retries on invalid expressions.
 
@@ -151,7 +165,9 @@ Choose an extension point based on the desired caller experience:
 | --- | --- |
 | Assert a JQ expression returns true | `jq.Match` / `jq.Matchf` |
 | Feed a selected JQ value into another matcher | `jq.Extract` / `jq.Extractf` |
+| Feed all JQ values into another matcher | `jq.ExtractAll` / `jq.ExtractAllf` |
 | Mutate data through a JQ expression | `jq.Transform` / `jq.Transformf` |
+| Apply a JQ expression to all results | `jq.TransformAll` / `jq.TransformAllf` |
 | Support a new input type for JQ | `jq.RegisterConverter` |
 | Assert a Kubernetes field | A `k8s` matcher or extractor composed with Gomega |
 | Add a Kubernetes client operation | A context-aware function compatible with `Expect`/`Eventually` |

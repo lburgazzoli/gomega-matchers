@@ -11,7 +11,7 @@ go get github.com/lburgazzoli/gomega-matchers
 ## Features
 
 - **JQ matchers** - Use [jq](https://jqlang.github.io/jq/) expressions to query and validate JSON structures
-- **Flexible input types** - Works with JSON strings, byte slices, readers, and Go types (maps, structs)
+- **Flexible input types** - Works with JSON strings, byte slices, raw messages, and Go types (maps, slices, and custom converters)
 - **Kubernetes support** - Generic helpers for typed and unstructured Kubernetes objects
 - **Composable** - Combine with Gomega's built-in matchers like `And()`, `Or()`, and `WithTransform()`
 
@@ -70,7 +70,7 @@ type Person struct {
 }
 
 // Register a converter for Person type
-jq.RegisterConverter(func(v any) (any, error) {
+if err := jq.RegisterConverter(func(v any) (any, error) {
     p, ok := v.(Person)
     if !ok {
         return nil, jq.ErrTypeNotSupported
@@ -87,7 +87,9 @@ jq.RegisterConverter(func(v any) (any, error) {
     }
 
     return result, nil
-})
+}); err != nil {
+    panic(err)
+}
 
 // Now use Person directly without WithTransform
 Expect(Person{Name: "Alice", Age: 30}).Should(
@@ -150,6 +152,15 @@ Expect(map[string]any{"status": "pending"}).Should(
 // Formatted expressions
 transform := jq.Transformf(`.data.%s = "%s"`, "key", "new-value")
 result, err = transform(inputMap)
+```
+
+Use `ExtractAll` or `TransformAll` when a query is expected to produce multiple
+results. The strict `Extract` and `Transform` functions return an error for
+multiple results, while the `All` variants return every result as a slice.
+
+```go
+values, err := jq.ExtractAll(`.items[]`)(inputMap)
+allValues, err := jq.TransformAll(`.items[] | .name`)(inputMap)
 ```
 
 ### Combining Matchers
