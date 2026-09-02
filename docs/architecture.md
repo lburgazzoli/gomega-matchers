@@ -13,7 +13,7 @@ caller
   ├─ jq.Match / jq.Extract / jq.Transform
   │    └─ Convert → gojq query execution → Gomega matcher or transform result
   └─ k8s.Get / k8s.Update / k8s.List / ...
-       └─ client.Client operation → result or error for Expect/Eventually
+       └─ capability-specific client operation → result or error for Expect/Eventually
 ```
 
 The packages do not own a Gomega test lifecycle. They return matchers or
@@ -102,6 +102,14 @@ need custom converters or parallel execution.
 
 Operations return context-aware functions so they can be used directly with
 Gomega's `Eventually`:
+
+- Read-only operations (`Get`, `Lookup`, `Absent`, `NotFound`, `List`,
+  `Events`, and `CoreEvents`) require only `client.Reader`.
+- `Delete` requires only `client.Writer`.
+- `Create`, `Update`, `StatusUpdate`, and `Upsert` use `client.Client` because
+  they combine read and write capabilities.
+- `Singleton` and `LookupSingleton` use `client.Client` because typed list
+  objects must be resolved from the client's runtime scheme.
 
 - `Get` clones the prototype and returns the fetched object without mutating
   the caller's input.

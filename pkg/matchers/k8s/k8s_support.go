@@ -34,7 +34,7 @@ func cloneObject[T client.Object](obj T) (T, error) {
 
 func fetchObject[T client.Object](
 	ctx context.Context,
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) (T, error) {
@@ -52,7 +52,7 @@ func fetchObject[T client.Object](
 
 func lookupObject[T client.Object](
 	ctx context.Context,
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) error {
@@ -206,7 +206,7 @@ func singletonNotFound(gvk schema.GroupVersionKind) error {
 
 func doCreate[T client.Object](
 	ctx context.Context,
-	cli client.Client,
+	cli client.Writer,
 	obj T,
 	opts ...client.CreateOption,
 ) (T, error) {
@@ -228,7 +228,7 @@ func doCreate[T client.Object](
 
 func doDelete[T client.Object](
 	ctx context.Context,
-	cli client.Client,
+	cli client.Writer,
 	obj T,
 	opts ...client.DeleteOption,
 ) error {

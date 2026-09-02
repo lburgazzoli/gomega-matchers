@@ -14,7 +14,7 @@ import (
 // Get retrieves a Kubernetes resource and returns it as the same concrete type.
 // The returned function is compatible with Gomega's Eventually() and Expect().
 func Get[T client.Object](
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) func(context.Context) (T, error) {
@@ -27,7 +27,7 @@ func Get[T client.Object](
 // only an error. The returned function is compatible with Gomega's Eventually()
 // and Expect().
 func Lookup[T client.Object](
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) func(context.Context) error {
@@ -110,7 +110,7 @@ func Create[T client.Object](
 
 // Delete deletes a Kubernetes resource.
 func Delete[T client.Object](
-	cli client.Client,
+	cli client.Writer,
 	obj T,
 	opts ...client.DeleteOption,
 ) func(context.Context) error {
@@ -164,7 +164,7 @@ func Upsert[T client.Object, F objectMutator[T]](
 // Returns true when the resource is not found OR the resource type has no REST mapping.
 // Returns StopTrying for unexpected errors.
 func Absent[T client.Object](
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) func(context.Context) (bool, error) {
@@ -175,7 +175,7 @@ func Absent[T client.Object](
 // Returns true only when the specific object is not found (HTTP 404).
 // Returns StopTrying if the resource type has no REST mapping or for other unexpected errors.
 func NotFound[T client.Object](
-	cli client.Client,
+	cli client.Reader,
 	obj T,
 	opts ...client.GetOption,
 ) func(context.Context) (bool, error) {
@@ -185,7 +185,7 @@ func NotFound[T client.Object](
 // List retrieves a list of Kubernetes resources.
 // The returned function is compatible with Gomega's Eventually() and Expect().
 func List[T client.ObjectList](
-	cli client.Client,
+	cli client.Reader,
 	list T,
 	opts ...client.ListOption,
 ) func(context.Context) (T, error) {
@@ -206,7 +206,7 @@ func List[T client.ObjectList](
 // Events lists events.k8s.io/v1 Kubernetes events and returns them as a plain
 // slice so callers can use standard Gomega collection matchers directly.
 func Events(
-	cli client.Client,
+	cli client.Reader,
 	opts ...EventOption,
 ) func(context.Context) ([]eventsv1.Event, error) {
 	return func(ctx context.Context) ([]eventsv1.Event, error) {
@@ -226,7 +226,7 @@ func Events(
 // CoreEvents lists legacy core/v1 Kubernetes events and returns them as a
 // plain slice so callers can use standard Gomega collection matchers directly.
 func CoreEvents(
-	cli client.Client,
+	cli client.Reader,
 	opts ...EventOption,
 ) func(context.Context) ([]corev1.Event, error) {
 	return func(ctx context.Context) ([]corev1.Event, error) {

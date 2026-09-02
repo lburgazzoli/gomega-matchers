@@ -1,6 +1,9 @@
 // Package k8s provides Kubernetes test helpers that integrate seamlessly with Gomega matchers.
 //
-// All operations are package-level generic functions that take a client.Client directly.
+// All operations are package-level generic functions. Read-only operations
+// accept client.Reader, while Delete accepts client.Writer. Operations that
+// combine capabilities accept client.Client. Singleton and LookupSingleton
+// also need client.Client to resolve typed list objects through its scheme.
 // Both typed objects (e.g., *corev1.ConfigMap) and unstructured objects
 // (*unstructured.Unstructured) work with the same functions — the type parameter is inferred.
 //
@@ -14,7 +17,7 @@
 //		"sigs.k8s.io/controller-runtime/pkg/client"
 //	)
 //
-//	cli := /* client.Client */
+//	cli := /* client.Client, client.Reader, or client.Writer as required */
 //
 //	// Get a typed object — JQ matchers work transparently
 //	Eventually(ctx, k8s.Get(cli, &corev1.ConfigMap{

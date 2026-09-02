@@ -178,7 +178,11 @@ Expect(`{"status":{"foo":"bar","count":42}}`).Should(
 ## Kubernetes Helpers
 
 The library provides generic helpers for testing Kubernetes resources with Gomega.
-All operations are package-level functions that take a `client.Client` directly.
+Operations are package-level functions. Read-only operations accept a
+`client.Reader`, `Delete` accepts a `client.Writer`, and `Create`, `Update`,
+`StatusUpdate`, and `Upsert` accept a `client.Client`. `Singleton` and
+`LookupSingleton` also require `client.Client` to resolve typed list objects
+through its scheme.
 Both typed objects (e.g., `*corev1.ConfigMap`) and unstructured objects work with the same functions.
 
 ```go
