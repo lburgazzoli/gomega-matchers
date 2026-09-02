@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -646,6 +647,136 @@ func TestContainerReturnsErrorWhenMissing(t *testing.T) {
 	_, err := k8s.Container("missing")(pod)
 
 	g.Expect(err).To(MatchError(`container "missing" not found`))
+}
+
+func TestVolumesExtractFromTypedDeployment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deploy := &appsv1.Deployment{
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "settings"},
+								},
+							},
+						},
+						{Name: "scratch", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(deploy).To(WithTransform(k8s.Volumes(), HaveLen(2)))
+	g.Expect(deploy).To(WithTransform(k8s.Volume("config"), SatisfyAll(
+		HaveField("Name", Equal("config")),
+		HaveField("ConfigMap.Name", Equal("settings")),
+	)))
+}
+
+func TestVolumeExtractsFromUnstructuredDeployment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata":   map[string]any{"name": "test"},
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{
+						"volumes": []any{
+							map[string]any{
+								"name":      "config",
+								"configMap": map[string]any{"name": "settings"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(obj).To(WithTransform(k8s.Volume("config"), SatisfyAll(
+		HaveField("Name", Equal("config")),
+		HaveField("ConfigMap.Name", Equal("settings")),
+	)))
+}
+
+func TestVolumeReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := k8s.Volume("missing")(&corev1.Pod{Spec: corev1.PodSpec{}})
+
+	g.Expect(err).To(MatchError(`volume "missing" not found`))
+}
+
+func TestResourceRequestsAndLimitsExtractTypedQuantities(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := corev1.Container{
+		Name: "app",
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.ResourceRequests(), HaveKeyWithValue(
+		corev1.ResourceCPU,
+		Satisfy(quantityMatches("250m")),
+	)))
+	g.Expect(container).To(WithTransform(k8s.ResourceLimits(), HaveKeyWithValue(
+		corev1.ResourceMemory,
+		Satisfy(quantityMatches("256Mi")),
+	)))
+}
+
+func TestResourceRequestsExtractFromUnstructuredContainer(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	container := map[string]any{
+		"name": "app",
+		"resources": map[string]any{
+			"requests": map[string]any{"cpu": "250m"},
+			"limits":   map[string]any{"memory": "256Mi"},
+		},
+	}
+
+	g.Expect(container).To(WithTransform(k8s.ResourceRequests(), HaveKeyWithValue(
+		corev1.ResourceCPU,
+		Satisfy(quantityMatches("250m")),
+	)))
+	g.Expect(container).To(WithTransform(k8s.ResourceLimits(), HaveKeyWithValue(
+		corev1.ResourceMemory,
+		Satisfy(quantityMatches("256Mi")),
+	)))
+}
+
+func quantityMatches(expected string) func(any) bool {
+	want := resource.MustParse(expected)
+
+	return func(actual any) bool {
+		quantity, ok := actual.(resource.Quantity)
+
+		return ok && quantity.Cmp(want) == 0
+	}
 }
 
 func TestEnvVarsExtractFromTypedContainer(t *testing.T) {

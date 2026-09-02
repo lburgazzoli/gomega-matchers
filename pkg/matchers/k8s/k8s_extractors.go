@@ -14,9 +14,14 @@ import (
 )
 
 const (
-	fieldContainers = "containers"
-	fieldSpec       = "spec"
-	fieldTemplate   = "template"
+	fieldContainers  = "containers"
+	fieldLimits      = "limits"
+	fieldRequests    = "requests"
+	fieldResources   = "resources"
+	fieldSpec        = "spec"
+	fieldTemplate    = "template"
+	fieldJobTemplate = "jobTemplate"
+	fieldVolumes     = "volumes"
 )
 
 // Data returns a transform function that extracts the full .data field from
@@ -190,6 +195,72 @@ func Container(name string) func(any) (any, error) {
 	}
 }
 
+// Volumes returns a transform function that extracts pod volumes as
+// []corev1.Volume.
+//
+// Supported inputs include pod-like objects with .spec.volumes, PodTemplate
+// objects, workload objects with .spec.template.spec.volumes, CronJob objects,
+// and unstructured values with any of those shapes.
+//
+// Returns nil when the input is supported but does not define volumes.
+//
+// Example:
+//
+//	WithTransform(k8s.Volumes(), ContainElement(HaveField("Name", Equal("config"))))
+func Volumes() func(any) (any, error) {
+	return extractVolumes
+}
+
+// Volume returns a transform function that extracts a named pod volume as
+// corev1.Volume.
+//
+// Supported inputs are the same as Volumes(). Returns an error when the volume
+// is not found.
+//
+// Example:
+//
+//	WithTransform(k8s.Volume("config"), HaveField("ConfigMap.Name", Equal("settings")))
+func Volume(name string) func(any) (any, error) {
+	return func(in any) (any, error) {
+		items, err := extractVolumes(in)
+		if err != nil {
+			return nil, err
+		}
+
+		return namedVolume(items, name)
+	}
+}
+
+// ResourceRequests returns a transform function that extracts a container's
+// resource requests as corev1.ResourceList.
+//
+// Supported inputs include typed containers and container maps, including
+// values returned by Container(). Missing resource requests return nil.
+//
+// Example:
+//
+//	WithTransform(k8s.Container("app"), WithTransform(k8s.ResourceRequests(), HaveKey(corev1.ResourceCPU)))
+func ResourceRequests() func(any) (any, error) {
+	return func(in any) (any, error) {
+		return extractResourceList(in, fieldRequests)
+	}
+}
+
+// ResourceLimits returns a transform function that extracts a container's
+// resource limits as corev1.ResourceList.
+//
+// Supported inputs include typed containers and container maps, including
+// values returned by Container(). Missing resource limits return nil.
+//
+// Example:
+//
+//	WithTransform(k8s.Container("app"), WithTransform(k8s.ResourceLimits(), HaveKey(corev1.ResourceMemory)))
+func ResourceLimits() func(any) (any, error) {
+	return func(in any) (any, error) {
+		return extractResourceList(in, fieldLimits)
+	}
+}
+
 // EnvVars returns a transform function that extracts container environment
 // variables as []corev1.EnvVar.
 //
@@ -249,7 +320,7 @@ func extractPodTemplate(in any) (any, error) {
 	for _, path := range [][]string{
 		{fieldTemplate},
 		{fieldSpec, fieldTemplate},
-		{fieldSpec, "jobTemplate", fieldSpec, fieldTemplate},
+		{fieldSpec, fieldJobTemplate, fieldSpec, fieldTemplate},
 	} {
 		template, ok, nestedErr := nestedMap(m, path...)
 		if nestedErr != nil {
@@ -298,6 +369,40 @@ func extractContainers(in any) (any, error) {
 	return nil, nil //nolint:nilnil
 }
 
+func extractVolumes(in any) (any, error) {
+	switch obj := in.(type) { // PodSpec stores volumes at the root, not under spec.
+	case *corev1.PodSpec:
+		return obj.Volumes, nil
+	case corev1.PodSpec:
+		return obj.Volumes, nil
+	}
+
+	m, err := toMap(in)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := [][]string{
+		{fieldSpec, fieldVolumes},
+		{fieldTemplate, fieldSpec, fieldVolumes},
+		{fieldSpec, fieldTemplate, fieldSpec, fieldVolumes},
+		{fieldSpec, fieldJobTemplate, fieldSpec, fieldTemplate, fieldSpec, fieldVolumes},
+	}
+
+	for _, path := range paths {
+		volumes, ok, nestedErr := nestedSlice(m, path...)
+		if nestedErr != nil {
+			return nil, nestedErr
+		}
+
+		if ok {
+			return convertValue[[]corev1.Volume](volumes, "volumes")
+		}
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
 func extractEnvVars(in any) (any, error) {
 	switch obj := in.(type) {
 	case *corev1.Container:
@@ -325,6 +430,54 @@ func extractEnvVars(in any) (any, error) {
 	}
 
 	return convertValue[[]corev1.EnvVar](envVars, "env vars")
+}
+
+func extractResourceList(in any, field string) (any, error) {
+	switch obj := in.(type) {
+	case *corev1.Container:
+		if obj == nil {
+			return nil, fmt.Errorf("expected *corev1.Container or container map, got %T", in)
+		}
+
+		return resourceListFor(obj.Resources, field), nil
+	case corev1.Container:
+		return resourceListFor(obj.Resources, field), nil
+	}
+
+	m, err := toMap(in)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractResourceListFromMap(m, field)
+}
+
+func extractResourceListFromMap(m map[string]any, field string) (any, error) {
+	resources, ok, nestedErr := nestedMap(m, fieldResources)
+	if nestedErr != nil {
+		return nil, nestedErr
+	}
+	if !ok {
+		return nil, nil //nolint:nilnil
+	}
+
+	values, ok, nestedErr := nestedMap(resources, field)
+	if nestedErr != nil {
+		return nil, nestedErr
+	}
+	if !ok {
+		return nil, nil //nolint:nilnil
+	}
+
+	return convertValue[corev1.ResourceList](values, field+" resources")
+}
+
+func resourceListFor(resources corev1.ResourceRequirements, field string) corev1.ResourceList {
+	if field == fieldRequests {
+		return resources.Requests
+	}
+
+	return resources.Limits
 }
 
 func extractConditions(in any) (any, error) {
@@ -414,6 +567,19 @@ func namedContainer(items any, name string) (any, error) {
 	return firstContainerNamed(containers, name)
 }
 
+func namedVolume(items any, name string) (any, error) {
+	if items == nil {
+		return nil, notFoundError("volume", name)
+	}
+
+	volumes, ok := items.([]corev1.Volume)
+	if !ok {
+		return nil, unexpectedCollectionType("volume", items)
+	}
+
+	return firstVolumeNamed(volumes, name)
+}
+
 func namedEnvVar(items any, name string) (any, error) {
 	if items == nil {
 		return nil, notFoundError("env var", name)
@@ -435,6 +601,16 @@ func firstContainerNamed(items []corev1.Container, name string) (any, error) {
 	}
 
 	return nil, notFoundError("container", name)
+}
+
+func firstVolumeNamed(items []corev1.Volume, name string) (any, error) {
+	for _, item := range items {
+		if item.Name == name {
+			return item, nil
+		}
+	}
+
+	return nil, notFoundError("volume", name)
 }
 
 func firstEnvVarNamed(items []corev1.EnvVar, name string) (any, error) {

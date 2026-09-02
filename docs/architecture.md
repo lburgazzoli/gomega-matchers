@@ -161,6 +161,11 @@ Extractors return functions for `WithTransform`:
   to a concrete condition type.
 - `PodTemplate`, `Containers`, `Container`, `EnvVars`, and `EnvVar` traverse
   common pod, workload, and CronJob shapes.
+- `Volumes` and `Volume` traverse the same pod and workload shapes and return
+  typed `corev1.Volume` values.
+- `ResourceRequests` and `ResourceLimits` operate on typed containers and
+  return `corev1.ResourceList`, preserving Kubernetes `resource.Quantity`
+  comparisons.
 
 Metadata matchers such as `HasName`, `HasNamespace`, `HasLabel`, and
 `HasAnnotation` are implemented as Gomega transforms. `HasOwnerReference`,

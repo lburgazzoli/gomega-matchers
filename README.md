@@ -351,6 +351,19 @@ Expect(obj).Should(
     WithTransform(k8s.Finalizers(), ContainElement("example.com/finalizer")),
 )
 
+// Extract typed pod volumes from a workload
+Expect(deployment).Should(
+    WithTransform(k8s.Volume("config"), HaveField("ConfigMap.Name", Equal("settings"))),
+)
+
+// Compare resource quantities semantically
+Expect(deployment).Should(
+    WithTransform(
+        k8s.Container("app"),
+        WithTransform(k8s.ResourceRequests(), HaveKey(corev1.ResourceCPU)),
+    ),
+)
+
 // Assert a list is empty
 Eventually(ctx, k8s.List(cli, &corev1.ConfigMapList{},
     client.InNamespace("default"),
