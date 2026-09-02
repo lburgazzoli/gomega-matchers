@@ -1,213 +1,149 @@
-# Development Guidelines
+# Development Guide
 
-This document outlines the development standards and practices for the gomega-matchers project.
+This guide is for contributors changing the library. Start with the root
+[README](../README.md) if you are using the library, and see
+[architecture.md](architecture.md) for the implementation model.
 
-## Project Overview
+## Repository map
 
-This library provides additional matchers for [Gomega](https://onsi.github.io/gomega/), focusing on JQ-based matchers for validating JSON structures in tests.
+| Path | Purpose |
+| --- | --- |
+| `pkg/matchers/jq/` | JQ matchers, transforms, input conversion, and tests |
+| `pkg/matchers/k8s/` | Kubernetes operations, extractors, matchers, and tests |
+| `pkg/matchers/k8s/condition/` | Matchers for Kubernetes condition fields |
+| `docs/` | Contributor and architecture documentation |
+| `Makefile` | Canonical interface for local development and CI checks |
+| `.github/workflows/` | Push and pull-request build checks |
+| `go.mod` | Module metadata and dependency versions |
 
-## Development Commands
+Tests are colocated with the package they exercise. Most tests use external
+test packages (`jq_test` or `k8s_test`) so they verify the public API; the
+small number of internal tests are reserved for package implementation details.
 
-### Testing
+## Prerequisites
+
+- Go 1.26.7, as declared by `go.mod`.
+- Network access the first time tools or modules need to be downloaded.
+- No Kubernetes cluster is required for the test suite. Kubernetes tests use
+  controller-runtime's fake client.
+
+Check the local toolchain with:
+
 ```bash
-# Run all tests
-make test
-
-# Run tests for a specific package
-go test -v ./pkg/matchers/jq/...
-
-# Run a specific test
-go test -v ./pkg/matchers/jq -run TestMatcher
+go version
 ```
 
-### Code Quality
+## Standard workflow
+
+Use the Makefile targets for routine tasks. CI runs `make check` followed by
+`make test` for both pushes to `main` and pull requests.
+
 ```bash
-# Run linter
-make lint
+make deps        # Tidy go.mod and go.sum after dependency changes
+make fmt         # Run the configured formatter and gofmt
+make test        # Run all package tests
+make lint        # Run golangci-lint
+make vulncheck   # Run govulncheck
+make check       # Run lint and vulnerability checks
+make clean       # Remove Go build and test caches
+```
 
-# Auto-fix linting issues
-make lint/fix
+The normal final verification is:
 
-# Format code
-make fmt
-
-# Check for vulnerabilities
-make vulncheck
-
-# Run all quality checks (lint + vulncheck)
+```bash
+make test
 make check
 ```
 
-### Dependency Management
-```bash
-# Tidy dependencies
-make deps
+For a focused test, direct `go test` is appropriate because the Makefile only
+provides the all-package test target:
 
-# Clean build cache
-make clean
+```bash
+go test -v ./pkg/matchers/jq/...
+go test -v ./pkg/matchers/k8s/...
+go test -v ./pkg/matchers/jq -run TestMatcher
 ```
 
-## Testing
+## Testing conventions
 
-### Gomega Without Ginkgo
+Tests use the standard `testing` package with vanilla Gomega assertions, not
+Ginkgo. Create the assertion object with `NewWithT(t)` and use `t.Parallel()`
+for tests that do not share mutable state.
 
-- Use vanilla Gomega assertions for all tests (not Ginkgo BDD style)
-- Always use dot imports for Gomega:
-  ```go
-  import . "github.com/onsi/gomega"
-  ```
-- Use standard Go testing with `testing.T`
-- Use `NewWithT(t)` pattern to create Gomega instance
-- Mark tests with `t.Parallel()` where appropriate
-
-**Example:**
 ```go
 func TestMatcher(t *testing.T) {
-    t.Parallel()
+	t.Parallel()
 
-    g := NewWithT(t)
-
-    g.Expect(`{"a":1}`).Should(
-        jq.Match(`.a == 1`),
-    )
+	g := NewWithT(t)
+	g.Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
 }
 ```
 
-## Architecture
+When adding or changing behavior, cover both successful and error paths. In
+particular:
 
-### Matcher Structure
+- JQ tests should cover conversion, expression parsing, evaluation, and
+  zero-result behavior where relevant.
+- Kubernetes tests should cover typed and unstructured inputs when the API
+  supports both, and should use the fake client for client operations.
+- Eventually-compatible operations should be tested for retryable errors and
+  terminal errors (`StopTrying`) separately.
+- Tests should assert the public result or error contract rather than private
+  helper calls unless an internal edge case is the subject of the test.
 
-The library follows Gomega's matcher interface pattern. All matchers implement `types.GomegaMatcher` with three required methods:
-- `Match(actual interface{}) (bool, error)` - performs the matching logic
-- `FailureMessage(actual interface{}) string` - returns the failure message
-- `NegatedFailureMessage(actual interface{}) string` - returns the negated failure message
+## Formatting and linting
 
-### JQ Matchers (`pkg/matchers/jq/`)
+Run `make fmt` instead of formatting individual files manually. The formatter
+configuration is in `.golangci.yml`; it enforces the project's import grouping
+and runs gofmt-related formatters.
 
-The JQ matchers use [gojq](https://github.com/itchyny/gojq) to query and validate JSON structures:
+Before committing, run `make lint` and address all issues. If a linter must be
+disabled for a non-obvious case, document the reason next to the exception.
+Prefer a code change over a new suppression.
 
-- **`jq.Match(expression)`** - evaluates a JQ expression that returns a boolean
-- **`jq.Extract(expression)`** - extracts data using JQ, designed for use with `WithTransform`
-- **`jq.Transform(expression)`** - applies a JQ transformation, returns the full modified result
+## Dependency changes
 
-#### Type Conversion (`jq_support.go`)
+Keep direct dependencies in the first `require` block of `go.mod` and let
+`make deps` maintain the module graph and `go.sum` entries. After changing a
+dependency:
 
-The `toType()` function handles conversion of various input types to JQ-compatible data structures:
-- String/`[]byte`/`json.RawMessage` → unmarshaled JSON
-- `io.Reader` → read and unmarshaled JSON
-- `*gbytes.Buffer` → contents unmarshaled as JSON
-- `unstructured.Unstructured` → Kubernetes unstructured objects
-- `map` and `slice` types → passed through directly
+1. Run `make deps`.
+2. Run the affected focused tests.
+3. Run `make test` and `make check`.
 
-JSON input must be an object `{}` or array `[]` (validated by checking the first byte).
+Kubernetes modules must stay on a version line supported by the selected
+controller-runtime release. Keep related Kubernetes modules aligned unless
+there is a documented reason not to.
 
-### Usage Examples
+## Adding or changing API
 
-```go
-// Direct JSON string matching
-Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
+For a new exported matcher, operation, extractor, mutator, or converter:
 
-// Combining matchers
-Expect(`{"status":{"foo":"bar"}}`).Should(
-    And(
-        jq.Match(`.status.foo == "bar"`),
-        jq.Match(`.status != null`),
-    ),
-)
+1. Put it in the package that owns the behavior.
+2. Add a Go doc comment and a focused test.
+3. Update the relevant usage section in [README.md](../README.md).
+4. Update [architecture.md](architecture.md) when the change affects data
+   flow, conversion rules, retry behavior, or package responsibilities.
+5. Run `make fmt`, `make test`, and `make check`.
 
-// Using Extract with WithTransform
-Expect(jsonString).Should(
-    WithTransform(jq.Extract(`.status`),
-        jq.Match(`.foo == "bar"`),
-    ),
-)
+Keep README examples concise and move implementation or behavioral detail into
+the contextual documentation under `docs/`.
 
-// Working with Go types
-Expect(map[string]any{"a": 1}).Should(
-    WithTransform(json.Marshal, jq.Match(`.a == 1`)),
-)
+## Git and pull requests
 
-// Complex array matching
-Expect(`{"Values":[ "foo" ]}`).Should(
-    jq.Match(`.Values | if . then any(. == "foo") else false end`),
-)
-```
+Use conventional commit messages:
 
-## Code Quality
-
-### Linting
-
-Always run the linter before committing changes:
-
-```bash
-make lint
-```
-
-- Address all linter errors before submitting code
-- Linter configuration is defined in `.golangci.yml`
-- The project uses golangci-lint v2 with most linters enabled
-- Import grouping enforced by `gci`: standard → default → blank → k8s.io → project-specific → dot
-- Some complexity linters are disabled (cyclop, gocognit, funlen) for practical reasons
-- If you need to disable a linter for a specific case, document why with a comment
-
-## Git Workflow
-
-### Conventional Commits
-
-Use conventional commit messages to maintain a clear and structured git history:
-
-**Format:**
-```
+```text
 <type>: <description>
-
-[optional body]
-
-[optional footer]
 ```
 
-**Common types:**
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation changes
-- `test`: Adding or updating tests
-- `refactor`: Code changes that neither fix bugs nor add features
-- `chore`: Maintenance tasks, dependency updates, etc.
+Typical types are `feat`, `fix`, `docs`, `test`, `refactor`, and `chore`.
+Keep commits small and logically scoped. Pull requests should explain the
+behavioral change, mention any compatibility considerations, and include the
+verification commands that were run.
 
-**Examples:**
-```
-feat: add server-side apply support for resources
+## Documentation maintenance
 
-fix: handle nil pointer in reconciler status update
-
-docs: update installation instructions
-
-test: add field manager verification tests
-
-refactor: simplify error handling in controller
-```
-
-For more details, see the [Conventional Commits specification](https://www.conventionalcommits.org/).
-
-## Code Organization
-
-### Error Handling
-
-- Return errors as the last return value
-- Use `fmt.Errorf` with `%w` for error wrapping to maintain error chains
-- Provide context in error messages about what operation failed
-
-**Example from the codebase:**
-```go
-if err := json.Unmarshal(in, &data); err != nil {
-    return nil, fmt.Errorf("unable to unmarshal result, %w", err)
-}
-```
-
-### Comments and Documentation
-
-- Comments should clarify **why** something is done, not **what** is being done
-- Focus on:
-  - Non-obvious business logic or algorithm choices
-  - Edge cases and their handling
-  - Relationships between components
-- Avoid redundant comments that merely restate the code
+When moving or renaming documentation, update links in the same change. The
+documentation map is maintained in [docs/README.md](README.md), and agent
+workflow guidance is kept separately in [AGENTS.md](../AGENTS.md).
