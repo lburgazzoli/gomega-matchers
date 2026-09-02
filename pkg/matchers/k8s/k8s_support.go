@@ -204,11 +204,6 @@ func singletonNotFound(gvk schema.GroupVersionKind) error {
 	return apierrors.NewNotFound(resource.GroupResource(), gvk.Kind+" matching list options")
 }
 
-// Write operations (create, update, upsert) re-fetch the object after the
-// write so the returned value reflects server-side defaults and mutations
-// (e.g. resourceVersion, generation, defaulted fields). This costs one
-// extra GET per write — acceptable for a test helper.
-
 func doCreate[T client.Object](
 	ctx context.Context,
 	cli client.Client,
@@ -224,8 +219,12 @@ func doCreate[T client.Object](
 		return zero[T](), fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	return fetchObject(ctx, cli, current)
+	return current, nil
 }
+
+// Update, status update, and upsert re-fetch the object after the write so the
+// returned value reflects server-side defaults and mutations (e.g.
+// resourceVersion, generation, and defaulted fields).
 
 func doDelete[T client.Object](
 	ctx context.Context,

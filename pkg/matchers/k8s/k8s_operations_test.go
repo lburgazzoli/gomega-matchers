@@ -253,6 +253,37 @@ func TestCreateTyped(t *testing.T) {
 	`))
 }
 
+func TestCreateReusesCreatedObjectForSubsequentInvocations(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	c := newFakeClient()
+	obj := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{"key": "created"},
+	}
+	create := k8s.Create(c, obj)
+
+	created, err := create(t.Context())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(created.Data).To(HaveKeyWithValue("key", "created"))
+
+	stored := &corev1.ConfigMap{}
+	g.Expect(c.Get(t.Context(), types.NamespacedName{
+		Name:      obj.Name,
+		Namespace: obj.Namespace,
+	}, stored)).To(Succeed())
+	stored.Data["key"] = "updated"
+	g.Expect(c.Update(t.Context(), stored)).To(Succeed())
+
+	observed, err := create(t.Context())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(observed.Data).To(HaveKeyWithValue("key", "updated"))
+}
+
 func TestCreateUnstructured(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"sync"
 
 	"github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,13 +75,35 @@ func LookupSingleton[T client.Object](
 }
 
 // Create creates a Kubernetes resource and returns the created object.
+// Subsequent invocations of the returned function fetch the created resource,
+// which makes it safe to use with Eventually while the resource changes.
+// Errors from the initial create, including AlreadyExists, are returned as-is.
 func Create[T client.Object](
 	cli client.Client,
 	obj T,
 	opts ...client.CreateOption,
 ) func(context.Context) (T, error) {
+	var mu sync.Mutex
+	created := false
+	var current T
+
 	return func(ctx context.Context) (T, error) {
-		return doCreate(ctx, cli, obj, opts...)
+		mu.Lock()
+		defer mu.Unlock()
+
+		if created {
+			return fetchObject(ctx, cli, current)
+		}
+
+		result, err := doCreate(ctx, cli, obj, opts...)
+		if err != nil {
+			return zero[T](), err
+		}
+
+		current = result
+		created = true
+
+		return current, nil
 	}
 }
 

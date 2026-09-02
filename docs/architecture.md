@@ -106,8 +106,12 @@ Gomega's `Eventually`:
 - `Get` clones the prototype and returns the fetched object without mutating
   the caller's input.
 - `Lookup` fetches into the caller-provided object and returns only an error.
-- `Create`, `Update`, `StatusUpdate`, and `Upsert` return the object after a
-  final fetch, so server-side defaults and mutations are visible in the result.
+- `Create` returns the object populated by the create request. `Update`,
+  `StatusUpdate`, and `Upsert` return the object after a final fetch, so
+  server-side defaults and mutations are visible in the result.
+- The function returned by `Create` creates only on its first invocation;
+  subsequent invocations fetch the created object so it can safely be used with
+  `Eventually` while the resource changes.
 - `Update` accepts either a typed callback (`func(T)`) or a reusable
   `func(client.Object)` mutator.
 - `Upsert` updates an existing object and creates only when the initial fetch
