@@ -96,3 +96,21 @@ func evalExactlyOne(query *gojq.Query, data any, expression string) (any, bool, 
 
 	return nil, false, fmt.Errorf("jq expression %q produced multiple results: %w", expression, ErrMultipleResults)
 }
+
+func evalAll(query *gojq.Query, data any) ([]any, error) {
+	results := make([]any, 0)
+	it := query.Run(data)
+
+	for {
+		v, ok := it.Next()
+		if !ok {
+			return results, nil
+		}
+
+		if err, ok := v.(error); ok {
+			return nil, err
+		}
+
+		results = append(results, v)
+	}
+}

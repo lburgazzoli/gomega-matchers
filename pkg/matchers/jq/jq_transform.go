@@ -53,6 +53,20 @@ func (j *Instance) Extract(expression string) func(in any) (any, error) {
 	})
 }
 
+// ExtractAll returns a transform function that extracts all values produced by
+// a JQ expression. It returns an empty slice when the expression produces no
+// results.
+func ExtractAll(expression string) func(in any) (any, error) {
+	return defaultInstance.ExtractAll(expression)
+}
+
+// ExtractAll returns a transform function using the instance's converter registry.
+func (j *Instance) ExtractAll(expression string) func(in any) (any, error) {
+	return j.newTransform(expression, func(q *gojq.Query, data any) (any, error) {
+		return evalAll(q, data)
+	})
+}
+
 // Extractf returns a transform function from a formatted JQ expression.
 func Extractf(expressionFormat string, args ...any) func(in any) (any, error) {
 	return defaultInstance.Extractf(expressionFormat, args...)
@@ -62,6 +76,17 @@ func Extractf(expressionFormat string, args ...any) func(in any) (any, error) {
 // the instance's converter registry.
 func (j *Instance) Extractf(expressionFormat string, args ...any) func(in any) (any, error) {
 	return j.Extract(fmt.Sprintf(expressionFormat, args...))
+}
+
+// ExtractAllf returns a transform function from a formatted JQ expression.
+func ExtractAllf(expressionFormat string, args ...any) func(in any) (any, error) {
+	return defaultInstance.ExtractAllf(expressionFormat, args...)
+}
+
+// ExtractAllf returns a transform function from a formatted JQ expression
+// using the instance's converter registry.
+func (j *Instance) ExtractAllf(expressionFormat string, args ...any) func(in any) (any, error) {
+	return j.ExtractAll(fmt.Sprintf(expressionFormat, args...))
 }
 
 // Transform returns a function that applies a JQ transformation expression to the input
@@ -86,6 +111,29 @@ func (j *Instance) Transform(expression string) func(in any) (any, error) {
 	})
 }
 
+// TransformAll returns a function that applies a JQ expression and returns all
+// transformed results. It returns an error when the expression produces no
+// results.
+func TransformAll(expression string) func(in any) (any, error) {
+	return defaultInstance.TransformAll(expression)
+}
+
+// TransformAll returns a transform function using the instance's converter registry.
+func (j *Instance) TransformAll(expression string) func(in any) (any, error) {
+	return j.newTransform(expression, func(q *gojq.Query, data any) (any, error) {
+		results, err := evalAll(q, data)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(results) == 0 {
+			return nil, fmt.Errorf("jq transform %q produced no result", expression)
+		}
+
+		return results, nil
+	})
+}
+
 // Transformf returns a transform function from a formatted JQ expression.
 func Transformf(expressionFormat string, args ...any) func(in any) (any, error) {
 	return defaultInstance.Transformf(expressionFormat, args...)
@@ -95,4 +143,15 @@ func Transformf(expressionFormat string, args ...any) func(in any) (any, error) 
 // using the instance's converter registry.
 func (j *Instance) Transformf(expressionFormat string, args ...any) func(in any) (any, error) {
 	return j.Transform(fmt.Sprintf(expressionFormat, args...))
+}
+
+// TransformAllf returns a transform function from a formatted JQ expression.
+func TransformAllf(expressionFormat string, args ...any) func(in any) (any, error) {
+	return defaultInstance.TransformAllf(expressionFormat, args...)
+}
+
+// TransformAllf returns a transform function from a formatted JQ expression
+// using the instance's converter registry.
+func (j *Instance) TransformAllf(expressionFormat string, args ...any) func(in any) (any, error) {
+	return j.TransformAll(fmt.Sprintf(expressionFormat, args...))
 }
