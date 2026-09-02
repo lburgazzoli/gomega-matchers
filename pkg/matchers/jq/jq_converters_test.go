@@ -474,6 +474,37 @@ func TestResetConvertersRestoresBuiltins(t *testing.T) {
 	g.Expect(result).Should(Equal(map[string]any{"foo": "bar"}))
 }
 
+func TestInstancesHaveIndependentConverters(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	first := jq.New()
+	second := jq.New()
+
+	type customValue struct {
+		Value string
+	}
+
+	first.RegisterConverter(func(v any) (any, error) {
+		value, ok := v.(customValue)
+		if !ok {
+			return nil, jq.ErrTypeNotSupported
+		}
+
+		return map[string]any{"value": value.Value}, nil
+	})
+
+	g.Expect(customValue{Value: "first"}).Should(
+		WithTransform(first.Convert, Equal(map[string]any{"value": "first"})),
+	)
+	g.Expect(customValue{Value: "first"}).Should(
+		first.Match(`.value == "first"`),
+	)
+
+	_, err := second.Convert(customValue{Value: "first"})
+	g.Expect(err).Should(HaveOccurred())
+}
+
 func TestConvertNormalizesInt64InMap(t *testing.T) {
 	t.Parallel()
 

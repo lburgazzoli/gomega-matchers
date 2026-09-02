@@ -16,12 +16,18 @@ import (
 //
 //	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
 func Match(expression string) types.GomegaMatcher {
+	return defaultInstance.Match(expression)
+}
+
+// Match creates a Gomega matcher using the instance's converter registry.
+func (j *Instance) Match(expression string) types.GomegaMatcher {
 	query, parseErr := parseQuery(expression)
 
 	return &jqMatcher{
 		expression: expression,
 		query:      query,
 		parseErr:   parseErr,
+		instance:   j,
 	}
 }
 
@@ -31,7 +37,13 @@ func Match(expression string) types.GomegaMatcher {
 //
 //	Expect(data).Should(jq.Matchf(`.status.phase == "%s"`, "Running"))
 func Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
-	return Match(fmt.Sprintf(expressionFormat, args...))
+	return defaultInstance.Matchf(expressionFormat, args...)
+}
+
+// Matchf creates a Gomega matcher using a formatted JQ expression and the
+// instance's converter registry.
+func (j *Instance) Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
+	return j.Match(fmt.Sprintf(expressionFormat, args...))
 }
 
 var _ types.GomegaMatcher = &jqMatcher{}
@@ -40,6 +52,7 @@ type jqMatcher struct {
 	expression string
 	query      *gojq.Query
 	parseErr   error
+	instance   *Instance
 }
 
 func (matcher *jqMatcher) Match(actual any) (bool, error) {
@@ -47,7 +60,7 @@ func (matcher *jqMatcher) Match(actual any) (bool, error) {
 		return false, terminalJQError(matcher.parseErr)
 	}
 
-	data, err := Convert(actual)
+	data, err := matcher.instance.Convert(actual)
 	if err != nil {
 		return false, err
 	}

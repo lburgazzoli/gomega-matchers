@@ -21,41 +21,60 @@ var ErrTypeNotSupported = errors.New("type not supported by this converter")
 // Returns ErrTypeNotSupported if the input type is not handled by this converter.
 type ConverterFunc func(any) (any, error)
 
-// The converter registry is intentionally global so tests can register a
-// converter once and then use Match/Extract naturally without threading a
-// configured jq instance through every assertion site.
+// Instance evaluates JQ expressions using its own converter registry.
 //
-//nolint:gochecknoglobals
-var (
+// Use New to create an isolated instance. The package-level functions use an
+// unexported default instance for convenient global configuration.
+type Instance struct {
 	convertersMu sync.RWMutex
 	converters   []ConverterFunc
-)
+}
 
-// RegisterConverter registers a type converter function.
-// User-registered converters are prepended to the list and checked before built-in converters.
+var defaultInstance = New()
+
+// New returns an isolated JQ instance initialized with the built-in converters.
+func New() *Instance {
+	return &Instance{converters: builtinConverters()}
+}
+
+// RegisterConverter registers a type converter on the default instance.
 func RegisterConverter(converter ConverterFunc) {
-	convertersMu.Lock()
-	defer convertersMu.Unlock()
-
-	converters = append([]ConverterFunc{converter}, converters...)
+	defaultInstance.RegisterConverter(converter)
 }
 
-// ResetConverters restores the converter registry to its initial state (built-in converters only).
-// Intended for use in tests via t.Cleanup() to prevent cross-test pollution.
+// RegisterConverter registers a type converter on the instance.
+// User-registered converters are prepended to the list and checked before built-in converters.
+func (j *Instance) RegisterConverter(converter ConverterFunc) {
+	j.convertersMu.Lock()
+	defer j.convertersMu.Unlock()
+
+	j.converters = append([]ConverterFunc{converter}, j.converters...)
+}
+
+// ResetConverters restores the default instance to its built-in converters.
 func ResetConverters() {
-	convertersMu.Lock()
-	defer convertersMu.Unlock()
-
-	converters = builtinConverters()
+	defaultInstance.ResetConverters()
 }
 
-// Convert converts an input value to a JQ-compatible type (map or slice).
-// It iterates through registered converters until one successfully converts the value.
-func Convert(in any) (any, error) {
-	convertersMu.RLock()
-	defer convertersMu.RUnlock()
+// ResetConverters restores the instance to its built-in converters.
+func (j *Instance) ResetConverters() {
+	j.convertersMu.Lock()
+	defer j.convertersMu.Unlock()
 
-	for _, converter := range converters {
+	j.converters = builtinConverters()
+}
+
+// Convert converts an input value using the default instance.
+func Convert(in any) (any, error) {
+	return defaultInstance.Convert(in)
+}
+
+// Convert converts an input value using the instance's converter registry.
+func (j *Instance) Convert(in any) (any, error) {
+	j.convertersMu.RLock()
+	defer j.convertersMu.RUnlock()
+
+	for _, converter := range j.converters {
 		result, err := converter(in)
 		if err == nil {
 			return normalizeForJQ(result), nil
@@ -92,11 +111,6 @@ func UnmarshalJSON(in []byte) (any, error) {
 	}
 
 	return result, nil
-}
-
-//nolint:gochecknoinits
-func init() {
-	converters = builtinConverters()
 }
 
 func builtinConverters() []ConverterFunc {
