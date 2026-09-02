@@ -30,9 +30,9 @@ func (j *Instance) newTransform(expression string, runner resultRunner) func(in 
 // Extract returns a transform function that extracts a value from input using a JQ expression.
 // The returned function can be used with Gomega's WithTransform matcher combinator.
 //
-// Only the first value produced by the expression is returned; multi-value
-// expressions silently discard subsequent results. Returns nil when the
-// expression produces no results.
+// The expression must produce at most one value. Returns nil when the
+// expression produces no results and a terminal error when it produces
+// multiple results.
 //
 // Example:
 //
@@ -94,8 +94,9 @@ func (j *Instance) ExtractAllf(expressionFormat string, args ...any) func(in any
 // Unlike Extract which returns nil when no result is produced, Transform returns an error,
 // since a transformation that yields nothing indicates a problem with the expression.
 //
-// Only the first value produced by the expression is returned; multi-value
-// expressions silently discard subsequent results.
+// The expression must produce exactly one value. An expression that produces
+// no results returns an error, as does an expression that produces multiple
+// results.
 //
 // Example:
 //
