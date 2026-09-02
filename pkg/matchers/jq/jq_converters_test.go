@@ -505,6 +505,43 @@ func TestInstancesHaveIndependentConverters(t *testing.T) {
 	g.Expect(err).Should(HaveOccurred())
 }
 
+func TestConverterCanReconfigureInstance(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	instance := jq.New()
+	registered := false
+
+	type customValue string
+
+	instance.RegisterConverter(func(v any) (any, error) {
+		if _, ok := v.(customValue); !ok {
+			return nil, jq.ErrTypeNotSupported
+		}
+
+		if !registered {
+			registered = true
+			instance.RegisterConverter(func(v any) (any, error) {
+				value, ok := v.(customValue)
+				if !ok {
+					return nil, jq.ErrTypeNotSupported
+				}
+
+				return map[string]any{"value": string(value)}, nil
+			})
+		}
+
+		return nil, jq.ErrTypeNotSupported
+	})
+
+	_, err := instance.Convert(customValue("value"))
+	g.Expect(err).Should(HaveOccurred())
+
+	result, err := instance.Convert(customValue("value"))
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(Equal(map[string]any{"value": "value"}))
+}
+
 func TestConvertNormalizesInt64InMap(t *testing.T) {
 	t.Parallel()
 

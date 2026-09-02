@@ -72,9 +72,10 @@ func Convert(in any) (any, error) {
 // Convert converts an input value using the instance's converter registry.
 func (j *Instance) Convert(in any) (any, error) {
 	j.convertersMu.RLock()
-	defer j.convertersMu.RUnlock()
+	converters := append([]ConverterFunc(nil), j.converters...)
+	j.convertersMu.RUnlock()
 
-	for _, converter := range j.converters {
+	for _, converter := range converters {
 		result, err := converter(in)
 		if err == nil {
 			return normalizeForJQ(result), nil
