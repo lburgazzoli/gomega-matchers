@@ -60,6 +60,33 @@ make test
 make check
 ```
 
+### Agent workflow
+
+For an agent-assisted change, use this sequence:
+
+1. Inspect `git status` before editing and leave unrelated changes untouched.
+2. Identify the owning package and read its public API and tests first.
+3. Make the smallest change that satisfies the requested behavior.
+4. Update Go docs, focused tests, and the appropriate documentation for public
+   API or behavioral changes.
+5. Run `make fmt`, `make test`, and `make check` before committing.
+6. Keep each commit focused and use a conventional commit message.
+
+When choosing a Kubernetes API, preserve the existing capability boundaries:
+
+| Operation kind | Client interface |
+| --- | --- |
+| `Get`, `Lookup`, `Absent`, `NotFound`, `List`, `Events`, `CoreEvents` | `client.Reader` |
+| `Delete` | `client.Writer` |
+| `Create`, `Update`, `StatusUpdate`, `Upsert` | `client.Client` |
+| `Singleton`, `LookupSingleton` | `client.Client` |
+
+The client-bound `k8s.Using(client)` façade is useful when many operations
+share one client, but its methods return `client.Object` and
+`client.ObjectList`. Use package-level generic functions when concrete result
+types are needed. Since Gomega does not provide a test context through
+`WithT(t)`, pass `t.Context()` explicitly to `Eventually`.
+
 For a focused test, direct `go test` is appropriate because the Makefile only
 provides the all-package test target:
 
@@ -179,5 +206,4 @@ verification commands that were run.
 When moving or renaming documentation, update links in the same change. Keep
 contributor workflow in this guide, implementation context in
 [architecture.md](architecture.md), user-facing examples in
-[README.md](../README.md), and agent workflow guidance in
-[AGENTS.md](../AGENTS.md).
+[README.md](../README.md), and agent workflow guidance in [AGENTS.md](../AGENTS.md).

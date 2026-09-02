@@ -196,6 +196,27 @@ Eventually(ctx, ops.Get(&corev1.ConfigMap{
 })).Should(jq.Match(`.data.key == "value"`))
 ```
 
+Choose the API based on the result you need:
+
+- Use package-level generic functions such as `k8s.Get` or `k8s.Singleton`
+  when the returned concrete Kubernetes type matters.
+- Use `k8s.Using(cli)` when several operations share a client and a
+  `client.Object` result is sufficient.
+- Use `jq.Extract` for arbitrary nested fields and `k8s` extractors for
+  Kubernetes-specific traversal or semantics, such as named containers,
+  volumes, and `resource.Quantity` values.
+- Use `Events` for `events.k8s.io/v1` and `CoreEvents` for legacy `core/v1`
+  events.
+
+Operations are context-aware, so tests should pass their test context to
+Gomega polling:
+
+```go
+Eventually(t.Context(), k8s.Get(cli, &corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{Name: "my-config", Namespace: "default"},
+})).Should(...)
+```
+
 ```go
 import (
     . "github.com/onsi/gomega"
@@ -424,6 +445,8 @@ Expect(obj).Should(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainEl
 
 See the contextual documentation for more detail:
 
+- [Agent Guide](AGENTS.md) — repository navigation, design rules, and the
+  agent workflow.
 - [Development Guide](docs/development.md) — contribution workflow, testing,
   dependencies, and code quality.
 - [Architecture](docs/architecture.md) — package boundaries and runtime

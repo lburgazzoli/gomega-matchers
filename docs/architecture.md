@@ -133,6 +133,23 @@ No matches produce a NotFound error, which is retryable by `Eventually`; more
 than one match produces `StopTrying` because retrying cannot make the current
 result unambiguous.
 
+The client-bound `Using` façade delegates to the same operations but cannot
+preserve concrete generic result types: Go does not allow type parameters on
+methods. Use it to avoid repeating a client, and use the package-level
+functions when a typed result is part of the test contract.
+
+The event helpers intentionally have separate names. `Events` lists
+`events.k8s.io/v1` events, while `CoreEvents` lists legacy `core/v1` events;
+they are different Kubernetes APIs and should not be silently interchanged.
+
+Create and update operations are designed for Gomega polling. `Create` sends
+the create request only on the first invocation, then fetches the created
+resource on later invocations. An initial error, including AlreadyExists, is
+returned to the caller. `Upsert` handles NotFound by creating and otherwise
+updates the live object. `Update`, `StatusUpdate`, and `Upsert` fetch the
+server-side object after mutation so defaults and server-side changes are
+visible to the matcher.
+
 ### Absence and not-found semantics
 
 `Absent` returns true for a missing object or a resource type without a REST
@@ -166,6 +183,11 @@ Extractors return functions for `WithTransform`:
 - `ResourceRequests` and `ResourceLimits` operate on typed containers and
   return `corev1.ResourceList`, preserving Kubernetes `resource.Quantity`
   comparisons.
+
+The extractors are intentionally semantic rather than general-purpose field
+selectors. Use JQ for arbitrary nested fields; use the Kubernetes extractors
+when traversal includes Kubernetes shapes or value semantics, such as finding
+a named container or comparing resource quantities.
 
 Metadata matchers such as `HasName`, `HasNamespace`, `HasLabel`, and
 `HasAnnotation` are implemented as Gomega transforms. `HasOwnerReference`,
