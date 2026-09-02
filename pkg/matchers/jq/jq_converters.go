@@ -41,11 +41,6 @@ func New() *Instance {
 	return &Instance{converters: builtinConverters()}
 }
 
-// RegisterConverter registers a type converter on the default instance.
-func RegisterConverter(converter ConverterFunc) error {
-	return defaultInstance.RegisterConverter(converter)
-}
-
 // RegisterConverter registers a type converter on the instance.
 // User-registered converters are prepended to the list and checked before built-in converters.
 func (j *Instance) RegisterConverter(converter ConverterFunc) error {
@@ -58,11 +53,6 @@ func (j *Instance) RegisterConverter(converter ConverterFunc) error {
 	j.convertersMu.Unlock()
 
 	return nil
-}
-
-// Convert converts an input value using the default instance.
-func Convert(in any) (any, error) {
-	return defaultInstance.Convert(in)
 }
 
 // Convert converts an input value using the instance's converter registry.
@@ -83,6 +73,16 @@ func (j *Instance) Convert(in any) (any, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported type:\n%s", format.Object(in, 1))
+}
+
+// RegisterConverter registers a type converter on the default instance.
+func RegisterConverter(converter ConverterFunc) error {
+	return defaultInstance.RegisterConverter(converter)
+}
+
+// Convert converts an input value using the default instance.
+func Convert(in any) (any, error) {
+	return defaultInstance.Convert(in)
 }
 
 // UnmarshalJSON unmarshals JSON bytes into a JQ-compatible type (map or slice).

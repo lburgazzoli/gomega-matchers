@@ -9,16 +9,6 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-// Match creates a Gomega matcher that evaluates a JQ expression against the actual value.
-// The expression should return a boolean result.
-//
-// Example:
-//
-//	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
-func Match(expression string) types.GomegaMatcher {
-	return defaultInstance.Match(expression)
-}
-
 // Match creates a Gomega matcher using the instance's converter registry.
 func (j *Instance) Match(expression string) types.GomegaMatcher {
 	query, parseErr := parseQuery(expression)
@@ -31,6 +21,22 @@ func (j *Instance) Match(expression string) types.GomegaMatcher {
 	}
 }
 
+// Matchf creates a Gomega matcher using a formatted JQ expression and the
+// instance's converter registry.
+func (j *Instance) Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
+	return j.Match(fmt.Sprintf(expressionFormat, args...))
+}
+
+// Match creates a Gomega matcher that evaluates a JQ expression against the actual value.
+// The expression should return a boolean result.
+//
+// Example:
+//
+//	Expect(`{"a":1}`).Should(jq.Match(`.a == 1`))
+func Match(expression string) types.GomegaMatcher {
+	return defaultInstance.Match(expression)
+}
+
 // Matchf creates a Gomega matcher from a formatted JQ expression.
 //
 // Example:
@@ -38,12 +44,6 @@ func (j *Instance) Match(expression string) types.GomegaMatcher {
 //	Expect(data).Should(jq.Matchf(`.status.phase == "%s"`, "Running"))
 func Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
 	return defaultInstance.Matchf(expressionFormat, args...)
-}
-
-// Matchf creates a Gomega matcher using a formatted JQ expression and the
-// instance's converter registry.
-func (j *Instance) Matchf(expressionFormat string, args ...any) types.GomegaMatcher {
-	return j.Match(fmt.Sprintf(expressionFormat, args...))
 }
 
 var _ types.GomegaMatcher = &jqMatcher{}
