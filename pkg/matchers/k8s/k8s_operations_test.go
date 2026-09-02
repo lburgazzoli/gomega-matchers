@@ -65,6 +65,9 @@ func newUnstructuredPod() *unstructured.Unstructured {
 	return obj
 }
 
+type configMapMutator func(*corev1.ConfigMap)
+type genericObjectMutator func(client.Object)
+
 // --- Get ---
 
 func TestLookupTyped(t *testing.T) {
@@ -386,6 +389,52 @@ func TestUpdateTyped(t *testing.T) {
 		.data.key1 == "updated" and
 		.data.key2 == "new"
 	`))
+}
+
+func TestUpdateAcceptsNamedMutators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("typed mutator", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		c := newFakeClient(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-config", Namespace: "default"},
+			Data:       map[string]string{"key": "original"},
+		})
+		mutator := configMapMutator(func(cm *corev1.ConfigMap) {
+			cm.Data["key"] = "updated"
+		})
+
+		result, err := k8s.Update(c, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-config", Namespace: "default"},
+		}, mutator)(t.Context())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Data).To(HaveKeyWithValue("key", "updated"))
+	})
+
+	t.Run("generic object mutator", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		c := newFakeClient(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-config", Namespace: "default"},
+			Data:       map[string]string{"key": "original"},
+		})
+		mutator := genericObjectMutator(func(obj client.Object) {
+			cm, ok := obj.(*corev1.ConfigMap)
+			if !ok {
+				return
+			}
+			cm.Data["key"] = "updated"
+		})
+
+		result, err := k8s.Update(c, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-config", Namespace: "default"},
+		}, mutator)(t.Context())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Data).To(HaveKeyWithValue("key", "updated"))
+	})
 }
 
 func TestUpdateUnstructured(t *testing.T) {

@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"maps"
+	"reflect"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -11,16 +12,34 @@ type objectMutator[T client.Object] interface {
 }
 
 func adaptMutator[T client.Object, F objectMutator[T]](fn F) func(T) {
-	return func(obj T) {
-		switch typed := any(fn).(type) {
-		case func(T):
-			typed(obj)
-		case func(client.Object):
-			typed(obj)
-		default:
-			panic("unsupported object mutator")
+	value := reflect.ValueOf(fn)
+	if typedFn, ok := convertFunction[func(T)](value); ok {
+		return typedFn
+	}
+
+	if objectFn, ok := convertFunction[func(client.Object)](value); ok {
+		return func(obj T) {
+			objectFn(obj)
 		}
 	}
+
+	panic("unsupported object mutator")
+}
+
+func convertFunction[T any](value reflect.Value) (T, bool) {
+	var zero T
+	if !value.IsValid() {
+		return zero, false
+	}
+
+	target := reflect.TypeFor[T]()
+	if !value.Type().ConvertibleTo(target) {
+		return zero, false
+	}
+
+	result, ok := value.Convert(target).Interface().(T)
+
+	return result, ok
 }
 
 // SetLabel returns a mutator that sets metadata.labels[key] = value.
