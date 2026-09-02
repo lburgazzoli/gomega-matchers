@@ -185,6 +185,17 @@ Operations are package-level functions. Read-only operations accept a
 through its scheme.
 Both typed objects (e.g., `*corev1.ConfigMap`) and unstructured objects work with the same functions.
 
+When several operations share a client, bind it once with `Using`. The façade
+uses `client.Object` results because Go methods cannot declare type parameters;
+use the package-level functions when concrete generic result types are needed.
+
+```go
+ops := k8s.Using(cli)
+Eventually(ctx, ops.Get(&corev1.ConfigMap{
+    ObjectMeta: metav1.ObjectMeta{Name: "my-config", Namespace: "default"},
+})).Should(jq.Match(`.data.key == "value"`))
+```
+
 ```go
 import (
     . "github.com/onsi/gomega"

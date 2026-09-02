@@ -4,6 +4,8 @@
 // accept client.Reader, while Delete accepts client.Writer. Operations that
 // combine capabilities accept client.Client. Singleton and LookupSingleton
 // also need client.Client to resolve typed list objects through its scheme.
+// Use Using(client) when several operations share the same client; use the
+// package-level functions when concrete generic result types are required.
 // Both typed objects (e.g., *corev1.ConfigMap) and unstructured objects
 // (*unstructured.Unstructured) work with the same functions — the type parameter is inferred.
 //
