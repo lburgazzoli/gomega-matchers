@@ -5,7 +5,7 @@ go 1.26.9
 require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/onsi/gomega v1.44.0
-	k8s.io/api v0.37.0
+	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	sigs.k8s.io/controller-runtime v0.25.2
 )
