@@ -649,6 +649,69 @@ func TestContainerReturnsErrorWhenMissing(t *testing.T) {
 	g.Expect(err).To(MatchError(`container "missing" not found`))
 }
 
+func TestInitContainerExtractsByName(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				{Name: "init", Image: "example/init:latest"},
+			},
+			Containers: []corev1.Container{
+				{Name: "app", Image: "example/app:latest"},
+			},
+		},
+	}
+
+	g.Expect(pod).To(WithTransform(k8s.InitContainer("init"), SatisfyAll(
+		HaveField("Name", Equal("init")),
+		HaveField("Image", Equal("example/init:latest")),
+	)))
+}
+
+func TestInitContainerExtractsByNameFromUnstructured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	obj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata":   map[string]any{"name": "test"},
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{
+						"initContainers": []any{
+							map[string]any{"name": "init", "image": "example/init:latest"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(obj).To(WithTransform(k8s.InitContainer("init"), SatisfyAll(
+		HaveField("Name", Equal("init")),
+		HaveField("Image", Equal("example/init:latest")),
+	)))
+}
+
+func TestInitContainerReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{{Name: "init"}},
+		},
+	}
+
+	_, err := k8s.InitContainer("missing")(pod)
+
+	g.Expect(err).To(MatchError(`container "missing" not found`))
+}
+
 func TestVolumesExtractFromTypedDeployment(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

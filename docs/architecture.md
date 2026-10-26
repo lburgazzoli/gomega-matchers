@@ -176,7 +176,8 @@ Extractors return functions for `WithTransform`:
 - `Data`, `Finalizers`, and `ListItems` expose common object fields.
 - `Conditions` returns generic condition maps; `ConditionsOf[T]` converts them
   to a concrete condition type.
-- `PodTemplate`, `Containers`, `Container`, `EnvVars`, and `EnvVar` traverse
+- `PodTemplate`, `Containers`, `Container`, `InitContainer`, `EnvVars`, and
+  `EnvVar` traverse
   common pod, workload, and CronJob shapes.
 - `Volumes` and `Volume` traverse the same pod and workload shapes and return
   typed `corev1.Volume` values.

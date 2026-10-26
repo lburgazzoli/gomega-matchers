@@ -14,14 +14,15 @@ import (
 )
 
 const (
-	fieldContainers  = "containers"
-	fieldLimits      = "limits"
-	fieldRequests    = "requests"
-	fieldResources   = "resources"
-	fieldSpec        = "spec"
-	fieldTemplate    = "template"
-	fieldJobTemplate = "jobTemplate"
-	fieldVolumes     = "volumes"
+	fieldContainers     = "containers"
+	fieldInitContainers = "initContainers"
+	fieldLimits         = "limits"
+	fieldRequests       = "requests"
+	fieldResources      = "resources"
+	fieldSpec           = "spec"
+	fieldTemplate       = "template"
+	fieldJobTemplate    = "jobTemplate"
+	fieldVolumes        = "volumes"
 )
 
 // Data returns a transform function that extracts the full .data field from
@@ -187,6 +188,27 @@ func Containers() func(any) (any, error) {
 func Container(name string) func(any) (any, error) {
 	return func(in any) (any, error) {
 		items, err := extractContainers(in)
+		if err != nil {
+			return nil, err
+		}
+
+		return namedContainer(items, name)
+	}
+}
+
+// InitContainer returns a transform function that extracts a named init
+// container as corev1.Container.
+//
+// Supported inputs are the same as Containers().
+//
+// Returns an error when the init container is not found.
+//
+// Example:
+//
+//	WithTransform(k8s.InitContainer("init"), HaveField("Image", Equal("example/init:latest")))
+func InitContainer(name string) func(any) (any, error) {
+	return func(in any) (any, error) {
+		items, err := extractInitContainers(in)
 		if err != nil {
 			return nil, err
 		}
@@ -363,6 +385,40 @@ func extractContainers(in any) (any, error) {
 
 		if ok {
 			return convertValue[[]corev1.Container](containers, "containers")
+		}
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
+func extractInitContainers(in any) (any, error) {
+	switch obj := in.(type) { // PodSpec stores init containers at the root, not under spec.
+	case *corev1.PodSpec:
+		return obj.InitContainers, nil
+	case corev1.PodSpec:
+		return obj.InitContainers, nil
+	}
+
+	m, err := toMap(in)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := [][]string{
+		{fieldSpec, fieldInitContainers},
+		{fieldTemplate, fieldSpec, fieldInitContainers},
+		{fieldSpec, fieldTemplate, fieldSpec, fieldInitContainers},
+		{fieldSpec, "jobTemplate", fieldSpec, fieldTemplate, fieldSpec, fieldInitContainers},
+	}
+
+	for _, path := range paths {
+		containers, ok, nestedErr := nestedSlice(m, path...)
+		if nestedErr != nil {
+			return nil, nestedErr
+		}
+
+		if ok {
+			return convertValue[[]corev1.Container](containers, "init containers")
 		}
 	}
 
