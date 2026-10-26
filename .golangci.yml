@@ -18,6 +18,7 @@ linters:
 
     # Struct initialization (too strict)
     - exhaustruct
+    - exhaustruct_v5
 
     # Error handling (too dogmatic for library code)
     - err113
@@ -44,6 +45,9 @@ linters:
           - revive
 
   settings:
+    modernize:
+      disable:
+        - embedlit
     revive:
       enable-all-rules: true
       rules:

@@ -37,7 +37,7 @@ func convertFunction[T any](value reflect.Value) (T, bool) {
 		return zero, false
 	}
 
-	result, ok := value.Convert(target).Interface().(T)
+	result, ok := reflect.TypeAssert[T](value.Convert(target))
 
 	return result, ok
 }

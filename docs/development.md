@@ -22,14 +22,14 @@ small number of internal tests are reserved for package implementation details.
 
 ## Prerequisites
 
-- Go 1.26.7, as declared by `go.mod`.
+- Go 1.27.3, as declared by `go.mod`.
 - Network access the first time tools or modules need to be downloaded.
 - No Kubernetes cluster is required for the test suite. Kubernetes tests use
   controller-runtime's fake client.
 
 Use the standard-library and language features available in the Go version
 declared by `go.mod` when they improve clarity or safety—for example,
-`slices.Clone` with Go 1.26.7. Do not preserve workarounds for older Go
+`slices.Clone` with Go 1.27.3. Do not preserve workarounds for older Go
 versions unless compatibility with those versions is an explicit requirement.
 
 Check the local toolchain with:

@@ -69,7 +69,7 @@ func newObjectLike[T client.Object](obj T) (T, error) {
 		return zero[T](), fmt.Errorf("expected non-nil pointer object type, got %T", obj)
 	}
 
-	result, ok := reflect.New(typ.Elem()).Interface().(T)
+	result, ok := reflect.TypeAssert[T](reflect.New(typ.Elem()))
 	if !ok {
 		return zero[T](), fmt.Errorf("failed to instantiate %T", obj)
 	}

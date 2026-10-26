@@ -51,7 +51,7 @@ make vulncheck   # Check for known vulnerabilities
 make check       # Run lint and vulnerability checks
 ```
 
-The module currently requires Go 1.26.7. Run `make test` and `make check`
+The module currently requires Go 1.27.3. Run `make test` and `make check`
 before submitting changes.
 
 ## API and design rules
