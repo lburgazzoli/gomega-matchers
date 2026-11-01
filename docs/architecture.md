@@ -223,6 +223,32 @@ or comparing representations. Invalid operators, quantities, and input types
 are matcher errors. The matcher composes with `ResourceRequests` and
 `ResourceLimits` through standard Gomega collection matchers.
 
+`MatchPartially` is an adapter around
+`apiequality.Semantic.DeepDerivative(expected, actual)`. It owns no recursive
+comparison, field-selection, or list-matching algorithm. Typed resource values
+are normalized to pointers, nil/unsupported inputs are rejected, and the pattern
+is deep-copied at construction so subsequent caller changes do not affect it.
+Typed comparisons use the original API types, preserving Kubernetes equality
+functions for quantities and timestamps. Different concrete types do not match.
+
+For mixed typed/unstructured inputs, both sides must have matching APIVersion
+and Kind. An unstructured actual is decoded into the typed pattern's type using
+the Kubernetes runtime converter. With an unstructured pattern, the actual is
+converted to an unstructured map. Two unstructured objects also compare their
+maps directly. No runtime scheme, API defaulting, or version conversion is used.
+Fields omitted from a typed object's unstructured representation are absent;
+quantity strings in map comparisons are compared literally.
+
+The matcher deliberately retains native caveats: zero numbers and false bools
+in typed patterns are significant, as are zero-valued semantic timestamps such
+as creationTimestamp. Nil pointers, empty strings, and empty maps/slices are
+wildcards. Expected map keys must exist. Slices compare positionally and allow
+additional trailing actual elements; names do not identify elements. Empty
+patterns follow these same native rules. Use the existing named extractors,
+JQ, and Gomega collection matchers for other assertion semantics. Mismatches
+remain retryable by Eventually; failure messages show the expected and actual
+objects because DeepDerivative returns a boolean rather than mismatch paths.
+
 `SetLabel` and `SetAnnotation` copy existing maps before changing them, and
 `Apply` composes mutators in order. This keeps reusable mutators from
 unexpectedly modifying a map shared by another object.

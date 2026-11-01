@@ -444,6 +444,89 @@ Expect(obj).Should(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainEl
 )))
 ```
 
+### Partial resource matching
+
+`MatchPartially` delegates to Kubernetes'
+[`apiequality.Semantic.DeepDerivative`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/equality#Semantic).
+It accepts typed resource values or pointers, and unstructured resources:
+
+```go
+Expect(pod).To(k8s.MatchPartially(corev1.Pod{
+    Spec: corev1.PodSpec{
+        Containers: []corev1.Container{
+            {Name: "app", Image: "example/backend:v2"},
+        },
+    },
+}))
+```
+
+This uses **Kubernetes' native comparison rules**. It does not infer which
+fields you explicitly wrote in a Go struct literal:
+
+| Expected value | Native comparison |
+| --- | --- |
+| Empty string, nil pointer, empty map or slice | Ignored |
+| Numeric zero or `false` | Compared, including fields omitted from a typed literal |
+| Map entries | Require the keys and partially compare their values; extra keys are allowed |
+| Nonempty slices | Compare by position; extra trailing actual elements are allowed |
+| Typed resource quantities and timestamps | Compare using Kubernetes semantic equality |
+
+**Typed pattern caveat:** the example also compares zero-valued fields such as
+`metadata.generation`, `spec.hostNetwork`, and `metadata.creationTimestamp`.
+Consequently, a sparse typed pattern can fail against a real API object even
+when the image matches. `corev1.Pod{}` is allowed and follows these same rules;
+it is not a reliable existence check. Use `k8s.Get` or `k8s.NotFound` to check
+resource existence. A copied live object also constrains its resourceVersion
+and other populated metadata.
+
+To select only particular fields, use an unstructured pattern. For a typed
+actual object, set its TypeMeta to the matching APIVersion and Kind:
+
+```go
+Expect(pod).To(k8s.MatchPartially(unstructured.Unstructured{
+    Object: map[string]any{
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "metadata": map[string]any{
+            "labels": map[string]any{"app": "backend"},
+        },
+        "spec": map[string]any{
+            "containers": []any{
+                map[string]any{"name": "app", "image": "example/backend:v2"},
+            },
+        },
+    },
+}))
+```
+
+Only keys present in an unstructured pattern participate, but native wildcard
+rules still apply: an explicitly present empty string, null, or empty collection
+does not assert that the actual value is empty. Use `jq.Match`, `BeEmpty`, or
+`BeNil` for those assertions. Unstructured patterns compare serialized maps;
+zero-valued typed fields omitted by the Kubernetes converter are absent, so use
+an explicit field matcher when asserting those Go values.
+
+**List caveat:** the first container in the pattern matches the first actual
+container, even if another container has the requested name. Command arguments
+also allow extra trailing elements. For named lookup or exact collections,
+compose the existing extractors with Gomega matchers:
+
+```go
+Expect(pod).To(WithTransform(k8s.Container("app"),
+    HaveField("Image", Equal("example/backend:v2")),
+))
+Expect(pod).To(jq.Match(`.spec.hostNetwork == false`))
+```
+
+Typed comparisons require the same concrete resource type. Mixed typed and
+unstructured inputs require matching APIVersion and Kind on both sides; fake
+clients may require you to populate TypeMeta explicitly. An unstructured actual
+is converted to the typed pattern's type, preserving typed quantity/time
+semantics. With an unstructured pattern, quantity strings are literal (`500m`
+and `0.5` differ). The matcher performs no defaulting or API version conversion,
+copies the pattern at construction, and shows actual and expected objects in
+failure messages.
+
 ### Conditions for the latest generation
 
 A condition can remain `Ready=True` while a controller is processing a newer
