@@ -193,6 +193,35 @@ a named container or comparing resource quantities.
 Metadata matchers such as `HasName`, `HasNamespace`, `HasLabel`, and
 `HasAnnotation` are implemented as Gomega transforms. `HasOwnerReference`,
 `IsControlledBy`, deletion, and GVK matchers follow the same composition model.
+Object matchers reject nil interfaces and typed nil pointers before calling
+object methods. Owner matchers require a non-nil expected owner with APIVersion,
+Kind, and Name set, and compare API group, Kind, and Name. UID is also compared
+when supplied; API version differences within one group do not change identity.
+Actual owner references with missing or malformed APIVersion cannot match.
+
+`HasCurrentCondition` inspects the complete typed or unstructured object. It
+requires a positive object generation and exactly one condition of the requested
+type with matching status and condition-level `observedGeneration` equal to that
+generation. Missing or stale conditions are ordinary mismatches. Duplicate
+requested condition types and malformed data are errors. It does not fall back
+to top-level `status.observedGeneration`; resources without condition-level
+generations must use the existing condition-field matchers.
+
+`HasCompletedDeploymentRollout` supports typed Deployments without TypeMeta and
+unstructured `apps/v1` Deployments. A positive observed generation must be at
+least the object's generation, and updated, total, and available replica counts
+must each equal desired replicas. Omitted desired replicas default to one;
+explicit zero remains zero. Missing status and incomplete rollouts are ordinary
+mismatches. Progress-deadline failures appear in diagnostics and do not stop
+polling. This predicate uses the API types already available in the module,
+without importing Kubernetes controller implementation packages.
+
+`CompareQuantity` parses the expected quantity once and compares actual quantity
+values, non-nil pointers, or strings using `resource.Quantity.Cmp`. Equality and
+ordering preserve exact Kubernetes arithmetic rather than converting to floats
+or comparing representations. Invalid operators, quantities, and input types
+are matcher errors. The matcher composes with `ResourceRequests` and
+`ResourceLimits` through standard Gomega collection matchers.
 
 `SetLabel` and `SetAnnotation` copy existing maps before changing them, and
 `Apply` composes mutators in order. This keeps reusable mutators from

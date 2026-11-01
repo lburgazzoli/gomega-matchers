@@ -3,6 +3,8 @@ package k8s
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"reflect"
 
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gstruct"
@@ -97,25 +99,28 @@ func IsDeleting() types.GomegaMatcher {
 }
 
 // HasOwnerReference matches a Kubernetes object containing an owner reference
-// matching the given owner's Kind and Name (and UID when set on the owner).
+// matching the given owner's API group, Kind and Name (and UID when set).
+// The owner must have APIVersion, Kind and Name set. API versions within the
+// same group are interchangeable.
 func HasOwnerReference(owner client.Object) types.GomegaMatcher {
-	return ownerRefTransform(owner, ownerRefFields(owner))
+	return ownerRefTransform(owner, gstruct.Fields{})
 }
 
 // IsControlledBy matches a Kubernetes object that has a controller owner reference
-// (Controller: true) matching the given owner's Kind and Name (and UID when set).
+// (Controller: true) matching the owner's API group, Kind and Name (and UID
+// when set). The owner must have APIVersion, Kind and Name set.
 func IsControlledBy(owner client.Object) types.GomegaMatcher {
-	fields := ownerRefFields(owner)
-	fields["Controller"] = gomega.HaveValue(gomega.BeTrue())
-
-	return ownerRefTransform(owner, fields)
+	return ownerRefTransform(owner, gstruct.Fields{"Controller": gomega.HaveValue(gomega.BeTrue())})
 }
 
-func ownerRefTransform(owner client.Object, fields gstruct.Fields) types.GomegaMatcher {
+func ownerRefTransform(owner client.Object, additionalFields gstruct.Fields) types.GomegaMatcher {
+	fields, ownerErr := ownerRefFields(owner)
+	maps.Copy(fields, additionalFields)
+
 	return gomega.WithTransform(
 		func(actual any) ([]metav1.OwnerReference, error) {
-			if owner.GetObjectKind().GroupVersionKind().Kind == "" {
-				return nil, errors.New("owner has empty Kind; set TypeMeta on the owner object")
+			if ownerErr != nil {
+				return nil, ownerErr
 			}
 
 			obj, err := asObject(actual)
@@ -129,17 +134,40 @@ func ownerRefTransform(owner client.Object, fields gstruct.Fields) types.GomegaM
 	)
 }
 
-func ownerRefFields(owner client.Object) gstruct.Fields {
-	fields := gstruct.Fields{
-		"Kind": gomega.Equal(owner.GetObjectKind().GroupVersionKind().Kind),
-		"Name": gomega.Equal(owner.GetName()),
+func ownerRefFields(owner client.Object) (gstruct.Fields, error) {
+	fields := gstruct.Fields{}
+	if _, err := asObject(owner); err != nil {
+		return fields, fmt.Errorf("invalid owner: %w", err)
 	}
+
+	gvk := owner.GetObjectKind().GroupVersionKind()
+	switch {
+	case gvk.Kind == "":
+		return fields, errors.New("owner has empty Kind; set TypeMeta on the owner object")
+	case gvk.Version == "":
+		return fields, errors.New("owner has empty APIVersion; set TypeMeta on the owner object")
+	case owner.GetName() == "":
+		return fields, errors.New("owner has empty Name")
+	}
+
+	gv, err := schema.ParseGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return fields, fmt.Errorf("invalid owner APIVersion: %w", err)
+	}
+
+	fields["Kind"] = gomega.Equal(gvk.Kind)
+	fields["Name"] = gomega.Equal(owner.GetName())
+	fields["APIVersion"] = gomega.Satisfy(func(version string) bool {
+		actual, parseErr := schema.ParseGroupVersion(version)
+
+		return parseErr == nil && actual.Version != "" && actual.Group == gv.Group
+	})
 
 	if owner.GetUID() != "" {
 		fields["UID"] = gomega.Equal(owner.GetUID())
 	}
 
-	return fields
+	return fields, nil
 }
 
 // MatchesGroupVersion matches a Kubernetes object by group and version.
@@ -183,6 +211,10 @@ func asObject(actual any) (client.Object, error) {
 	obj, ok := actual.(client.Object)
 	if !ok {
 		return nil, fmt.Errorf("expected client.Object, got %T", actual)
+	}
+	value := reflect.ValueOf(obj)
+	if value.Kind() == reflect.Pointer && value.IsNil() {
+		return nil, fmt.Errorf("expected non-nil client.Object, got %T", actual)
 	}
 
 	return obj, nil

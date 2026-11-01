@@ -37,15 +37,16 @@ func TestObjectMetadataMatchers(t *testing.T) {
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					Kind: "Module",
-					Name: "example",
+					APIVersion: "example.com/v1",
+					Kind:       "Module",
+					Name:       "example",
 				},
 			},
 		},
 	}
 
 	owner := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{Kind: "Module"},
+		TypeMeta: metav1.TypeMeta{APIVersion: "example.com/v1", Kind: "Module"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "example",
 		},
@@ -128,7 +129,7 @@ func TestIsControlledBy(t *testing.T) {
 	boolPtr := func(v bool) *bool { return &v }
 
 	owner := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{Kind: "Deployment"},
+		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-deploy",
 		},
@@ -141,7 +142,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "Deployment", Name: "my-deploy", Controller: boolPtr(true)},
+					{APIVersion: "apps/v1", Kind: "Deployment", Name: "my-deploy", Controller: boolPtr(true)},
 				},
 			},
 		}
@@ -156,7 +157,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "Deployment", Name: "my-deploy"},
+					{APIVersion: "apps/v1", Kind: "Deployment", Name: "my-deploy"},
 				},
 			},
 		}
@@ -171,7 +172,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "Deployment", Name: "my-deploy", Controller: boolPtr(false)},
+					{APIVersion: "apps/v1", Kind: "Deployment", Name: "my-deploy", Controller: boolPtr(false)},
 				},
 			},
 		}
@@ -186,7 +187,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "StatefulSet", Name: "my-deploy", Controller: boolPtr(true)},
+					{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "my-deploy", Controller: boolPtr(true)},
 				},
 			},
 		}
@@ -199,7 +200,7 @@ func TestIsControlledBy(t *testing.T) {
 		g := NewWithT(t)
 
 		ownerWithUID := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{Kind: "Deployment"},
+			TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "my-deploy",
 				UID:  "abc-123",
@@ -209,7 +210,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "Deployment", Name: "my-deploy", UID: "abc-123", Controller: boolPtr(true)},
+					{APIVersion: "apps/v1", Kind: "Deployment", Name: "my-deploy", UID: "abc-123", Controller: boolPtr(true)},
 				},
 			},
 		}
@@ -222,7 +223,7 @@ func TestIsControlledBy(t *testing.T) {
 		g := NewWithT(t)
 
 		ownerWithUID := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{Kind: "Deployment"},
+			TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "my-deploy",
 				UID:  "abc-123",
@@ -232,7 +233,7 @@ func TestIsControlledBy(t *testing.T) {
 		child := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				OwnerReferences: []metav1.OwnerReference{
-					{Kind: "Deployment", Name: "my-deploy", UID: "different", Controller: boolPtr(true)},
+					{APIVersion: "apps/v1", Kind: "Deployment", Name: "my-deploy", UID: "different", Controller: boolPtr(true)},
 				},
 			},
 		}

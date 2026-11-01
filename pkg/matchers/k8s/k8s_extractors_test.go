@@ -802,11 +802,11 @@ func TestResourceRequestsAndLimitsExtractTypedQuantities(t *testing.T) {
 
 	g.Expect(container).To(WithTransform(k8s.ResourceRequests(), HaveKeyWithValue(
 		corev1.ResourceCPU,
-		Satisfy(quantityMatches("250m")),
+		k8s.CompareQuantity("==", "250m"),
 	)))
 	g.Expect(container).To(WithTransform(k8s.ResourceLimits(), HaveKeyWithValue(
 		corev1.ResourceMemory,
-		Satisfy(quantityMatches("256Mi")),
+		k8s.CompareQuantity("==", "256Mi"),
 	)))
 }
 
@@ -824,22 +824,12 @@ func TestResourceRequestsExtractFromUnstructuredContainer(t *testing.T) {
 
 	g.Expect(container).To(WithTransform(k8s.ResourceRequests(), HaveKeyWithValue(
 		corev1.ResourceCPU,
-		Satisfy(quantityMatches("250m")),
+		k8s.CompareQuantity("==", "250m"),
 	)))
 	g.Expect(container).To(WithTransform(k8s.ResourceLimits(), HaveKeyWithValue(
 		corev1.ResourceMemory,
-		Satisfy(quantityMatches("256Mi")),
+		k8s.CompareQuantity("==", "256Mi"),
 	)))
-}
-
-func quantityMatches(expected string) func(any) bool {
-	want := resource.MustParse(expected)
-
-	return func(actual any) bool {
-		quantity, ok := actual.(resource.Quantity)
-
-		return ok && quantity.Cmp(want) == 0
-	}
 }
 
 func TestEnvVarsExtractFromTypedContainer(t *testing.T) {

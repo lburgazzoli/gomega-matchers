@@ -377,11 +377,13 @@ Expect(deployment).Should(
     WithTransform(k8s.Volume("config"), HaveField("ConfigMap.Name", Equal("settings"))),
 )
 
-// Compare resource quantities semantically
+// Compare resource quantities semantically, including minimums and limits
 Expect(deployment).Should(
     WithTransform(
         k8s.Container("app"),
-        WithTransform(k8s.ResourceRequests(), HaveKey(corev1.ResourceCPU)),
+        WithTransform(k8s.ResourceRequests(), HaveKeyWithValue(
+            corev1.ResourceCPU, k8s.CompareQuantity(">=", "500m"),
+        )),
     ),
 )
 
@@ -416,6 +418,7 @@ Expect(pod).Should(SatisfyAll(
 ))
 
 // Owner reference matchers
+// Set APIVersion, Kind, and Name on owner, including in fake-client tests.
 Expect(child).Should(k8s.HasOwnerReference(owner))
 Expect(child).Should(k8s.IsControlledBy(owner))
 
@@ -440,6 +443,50 @@ Expect(obj).Should(WithTransform(k8s.ConditionsOf[metav1.Condition](), ContainEl
     ),
 )))
 ```
+
+### Conditions for the latest generation
+
+A condition can remain `Ready=True` while a controller is processing a newer
+spec. For resources with condition-level `observedGeneration`, assert freshness
+against the fetched object's generation:
+
+```go
+Eventually(t.Context(), k8s.Get(cli, resource)).Should(
+    k8s.HasCurrentCondition("Ready", metav1.ConditionTrue),
+)
+```
+
+This requires a positive `metadata.generation` and a condition whose
+`observedGeneration` equals that generation. Missing or stale conditions remain
+retryable mismatches. For resources without condition-level generations, use
+the existing `Conditions` and `condition` matchers.
+
+### Deployment rollout completion
+
+```go
+Eventually(t.Context(), k8s.Get(cli, deployment)).Should(
+    k8s.HasCompletedDeploymentRollout(),
+)
+```
+
+The matcher requires the latest generation to have been observed, with updated,
+total, and available replicas all equal to the desired count. This catches old
+replicas remaining during an upgrade. Omitted desired replicas default to one;
+an explicit zero is supported. Failure messages show replica counts, generation
+lag, and any progress-deadline failure, while allowing polling to continue.
+
+### Quantity comparisons and owner identity
+
+`CompareQuantity` accepts quantity values, non-nil quantity pointers, and quantity
+strings. It supports `==`, `!=`, `<`, `<=`, `>`, and `>=` using exact Kubernetes
+arithmetic: `500m` equals `0.5`, and `1Gi` equals `1024Mi`.
+
+`HasOwnerReference` and `IsControlledBy` require the expected owner to have
+APIVersion, Kind, and Name set. They compare API group, Kind, and Name, plus UID
+when supplied; different versions within the same group may match. **Migration:**
+Kind-only owner fixtures must now set APIVersion, for example `apps/v1` for a
+Deployment or `v1` for a ConfigMap. Nil and typed-nil objects produce matcher
+errors rather than panics.
 
 ## Documentation
 
