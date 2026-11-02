@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -83,6 +84,7 @@ func copyObjectInto[T client.Object](dst T, src T) error {
 	if !dstValue.IsValid() || dstValue.Kind() != reflect.Pointer || dstValue.IsNil() {
 		return fmt.Errorf("expected non-nil destination object, got %T", dst)
 	}
+
 	if !srcValue.IsValid() || srcValue.Kind() != reflect.Pointer || srcValue.IsNil() {
 		return fmt.Errorf("expected non-nil source object, got %T", src)
 	}
@@ -317,4 +319,72 @@ func doUpsert[T client.Object](
 	}
 
 	return fetchObject(ctx, cli, created)
+}
+
+func asObject(actual any) (client.Object, error) {
+	obj, ok := actual.(client.Object)
+	if !ok {
+		return nil, fmt.Errorf("expected client.Object, got %T", actual)
+	}
+
+	value := reflect.ValueOf(obj)
+	if value.Kind() == reflect.Pointer && value.IsNil() {
+		return nil, fmt.Errorf("expected non-nil client.Object, got %T", actual)
+	}
+
+	return obj, nil
+}
+
+func objectGVK(actual any) (schema.GroupVersionKind, error) {
+	obj, err := asObject(actual)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+
+	return obj.GetObjectKind().GroupVersionKind(), nil
+}
+
+func normalizeStructPointer(in any) (any, error) {
+	v := reflect.ValueOf(in)
+	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
+		return nil, fmt.Errorf("expected struct, pointer to struct, or map[string]any, got %T", in)
+	}
+
+	if v.Kind() == reflect.Struct {
+		ptr := reflect.New(v.Type())
+		ptr.Elem().Set(v)
+
+		return ptr.Interface(), nil
+	}
+
+	if v.Kind() == reflect.Pointer && v.Elem().Kind() == reflect.Struct {
+		return in, nil
+	}
+
+	return nil, fmt.Errorf("expected struct, pointer to struct, or map[string]any, got %T", in)
+}
+
+func convertValue[T any](raw any, what string) (T, error) {
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return zero[T](), fmt.Errorf("marshaling %s: %w", what, err)
+	}
+
+	var result T
+	if err := json.Unmarshal(data, &result); err != nil {
+		return zero[T](), fmt.Errorf("unmarshaling %s into %T: %w", what, result, err)
+	}
+
+	return result, nil
+}
+
+func toUnstructuredMap(in any) (map[string]any, error) {
+	switch obj := in.(type) {
+	case *unstructured.Unstructured:
+		return obj.Object, nil
+	case client.Object:
+		return runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	default:
+		return nil, fmt.Errorf("expected client.Object, got %T", in)
+	}
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -513,6 +511,7 @@ func extractResourceListFromMap(m map[string]any, field string) (any, error) {
 	if nestedErr != nil {
 		return nil, nestedErr
 	}
+
 	if !ok {
 		return nil, nil //nolint:nilnil
 	}
@@ -521,6 +520,7 @@ func extractResourceListFromMap(m map[string]any, field string) (any, error) {
 	if nestedErr != nil {
 		return nil, nestedErr
 	}
+
 	if !ok {
 		return nil, nil //nolint:nilnil
 	}
@@ -574,40 +574,6 @@ func toMap(in any) (map[string]any, error) {
 	}
 
 	return m, nil
-}
-
-func normalizeStructPointer(in any) (any, error) {
-	v := reflect.ValueOf(in)
-	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
-		return nil, fmt.Errorf("expected struct, pointer to struct, or map[string]any, got %T", in)
-	}
-
-	if v.Kind() == reflect.Struct {
-		ptr := reflect.New(v.Type())
-		ptr.Elem().Set(v)
-
-		return ptr.Interface(), nil
-	}
-
-	if v.Kind() == reflect.Pointer && v.Elem().Kind() == reflect.Struct {
-		return in, nil
-	}
-
-	return nil, fmt.Errorf("expected struct, pointer to struct, or map[string]any, got %T", in)
-}
-
-func convertValue[T any](raw any, what string) (T, error) {
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return zero[T](), fmt.Errorf("marshaling %s: %w", what, err)
-	}
-
-	var result T
-	if err := json.Unmarshal(data, &result); err != nil {
-		return zero[T](), fmt.Errorf("unmarshaling %s into %T: %w", what, result, err)
-	}
-
-	return result, nil
 }
 
 func namedContainer(items any, name string) (any, error) {
@@ -685,17 +651,6 @@ func unexpectedCollectionType(what string, items any) error {
 
 func notFoundError(what string, name string) error {
 	return fmt.Errorf("%s %q not found", what, name)
-}
-
-func toUnstructuredMap(in any) (map[string]any, error) {
-	switch obj := in.(type) {
-	case *unstructured.Unstructured:
-		return obj.Object, nil
-	case client.Object:
-		return runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	default:
-		return nil, fmt.Errorf("expected client.Object, got %T", in)
-	}
 }
 
 func nestedMap(m map[string]any, fields ...string) (map[string]any, bool, error) {

@@ -35,7 +35,9 @@ pkg/matchers/k8s/
   └─ event options and metadata mutators
 
 pkg/matchers/k8s/condition/
-  └─ matchers for condition type, status, reason, and message
+  ├─ matchers for condition type, status, reason, and message
+  ├─ condition parsing, type/status validation, and unique-type lookup
+  └─ object condition freshness against metadata.generation
 ```
 
 The Kubernetes package may use the JQ package in caller-facing examples, but
@@ -171,6 +173,10 @@ that assert GVK should set `TypeMeta` explicitly or use unstructured objects.
 
 ### Extractors, matchers, and mutators
 
+Matcher-specific implementation helpers are methods on their matcher types.
+Helpers shared across matchers or operations live in `k8s_support.go` to keep
+the flat package namespace focused.
+
 Extractors return functions for `WithTransform`:
 
 - `Data`, `Finalizers`, and `ListItems` expose common object fields.
@@ -199,13 +205,23 @@ Kind, and Name set, and compare API group, Kind, and Name. UID is also compared
 when supplied; API version differences within one group do not change identity.
 Actual owner references with missing or malformed APIVersion cannot match.
 
-`HasCurrentCondition` inspects the complete typed or unstructured object. It
-requires a positive object generation and exactly one condition of the requested
-type with matching status and condition-level `observedGeneration` equal to that
-generation. Missing or stale conditions are ordinary mismatches. Duplicate
+`condition.HasCurrentCondition` inspects the complete typed or unstructured
+object. It requires a positive object generation and exactly one condition of
+the requested type with matching status and condition-level `observedGeneration`
+equal to that generation. Missing or stale conditions are ordinary mismatches. Duplicate
 requested condition types and malformed data are errors. It does not fall back
 to top-level `status.observedGeneration`; resources without condition-level
 generations must use the existing condition-field matchers.
+The `condition` package owns type/status validation and parsing of individual
+conditions. `condition.Find` validates raw condition entries and detects duplicate
+entries for the requested type; `condition.ValidateTypeAndStatus` validates the
+requested pair. These checks intentionally do not enforce every metav1.Condition
+API requirement, such as a nonempty reason or a transition timestamp.
+`condition.HasCurrentCondition` also owns object extraction and comparison
+against the object's generation. The condition package uses Kubernetes runtime
+conversion directly and does not import the parent k8s package. Existing
+condition-field matchers remain simple field assertions and do not implicitly
+enforce semantic validation.
 
 `HasCompletedDeploymentRollout` supports typed Deployments without TypeMeta and
 unstructured `apps/v1` Deployments. A positive observed generation must be at

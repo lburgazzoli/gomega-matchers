@@ -529,13 +529,16 @@ failure messages.
 
 ### Conditions for the latest generation
 
+Use `condition.HasCurrentCondition` from `pkg/matchers/k8s/condition` for
+resource-level freshness assertions.
+
 A condition can remain `Ready=True` while a controller is processing a newer
 spec. For resources with condition-level `observedGeneration`, assert freshness
 against the fetched object's generation:
 
 ```go
 Eventually(t.Context(), k8s.Get(cli, resource)).Should(
-    k8s.HasCurrentCondition("Ready", metav1.ConditionTrue),
+    condition.HasCurrentCondition("Ready", metav1.ConditionTrue),
 )
 ```
 
@@ -543,6 +546,20 @@ This requires a positive `metadata.generation` and a condition whose
 `observedGeneration` equals that generation. Missing or stale conditions remain
 retryable mismatches. For resources without condition-level generations, use
 the existing `Conditions` and `condition` matchers.
+
+Condition-level checks are also available directly:
+
+```go
+err := condition.ValidateTypeAndStatus("Ready", metav1.ConditionTrue)
+ready, err := condition.Find(rawConditions, "Ready") // rawConditions is []any of condition maps
+```
+
+`Find` validates each entry's type and status, returns nil when the requested
+type is missing, and reports duplicates of the requested type. These helpers
+do not enforce every condition API requirement, such as a reason or transition
+timestamp. The field matchers (`condition.Is`, `HasReason`, etc.) retain their
+existing behavior; freshness against the resource generation remains the job
+of `condition.HasCurrentCondition`.
 
 ### Deployment rollout completion
 

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"reflect"
 
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gstruct"
@@ -205,26 +204,4 @@ func IsEmptyList() types.GomegaMatcher {
 		ListItems(),
 		gomega.BeEmpty(),
 	)
-}
-
-func asObject(actual any) (client.Object, error) {
-	obj, ok := actual.(client.Object)
-	if !ok {
-		return nil, fmt.Errorf("expected client.Object, got %T", actual)
-	}
-	value := reflect.ValueOf(obj)
-	if value.Kind() == reflect.Pointer && value.IsNil() {
-		return nil, fmt.Errorf("expected non-nil client.Object, got %T", actual)
-	}
-
-	return obj, nil
-}
-
-func objectGVK(actual any) (schema.GroupVersionKind, error) {
-	obj, err := asObject(actual)
-	if err != nil {
-		return schema.GroupVersionKind{}, err
-	}
-
-	return obj.GetObjectKind().GroupVersionKind(), nil
 }
