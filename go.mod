@@ -3,7 +3,7 @@ module github.com/lburgazzoli/gomega-matchers
 go 1.27.3
 
 require (
-	github.com/itchyny/gojq v0.12.19
+	github.com/itchyny/gojq v0.12.20
 	github.com/onsi/gomega v1.44.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
